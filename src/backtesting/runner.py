@@ -36,6 +36,7 @@ def run_backtest(
     matches_path: Path | None = None,
     ratings: dict | None = None,
     model_type: str = "poisson",
+    rho: float = -0.10,
 ) -> list[MatchResult]:
     """Run model predictions for all historical matches and return per-match results.
 
@@ -43,6 +44,8 @@ def run_backtest(
         matches_path: Path to historical_matches.csv. Defaults to data/historical_matches.csv.
         ratings: Dict from load_team_ratings(). Loaded from default CSV if not provided.
         model_type: "poisson" (default) or "dixon_coles".
+        rho: Dixon-Coles correction parameter (default -0.10).
+             Only used when model_type == "dixon_coles". Ignored for Poisson.
 
     Raises:
         FileNotFoundError: if matches CSV is missing.
@@ -76,7 +79,7 @@ def run_backtest(
 
         xg_a, xg_b = calculate_xg(ratings[team_a], ratings[team_b])
         if model_type == "dixon_coles":
-            prediction = predict_dixon_coles(team_a, team_b, xg_a, xg_b)
+            prediction = predict_dixon_coles(team_a, team_b, xg_a, xg_b, rho=rho)
         else:
             prediction = predict(team_a, team_b, xg_a, xg_b)
 

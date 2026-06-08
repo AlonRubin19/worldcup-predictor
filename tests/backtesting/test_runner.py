@@ -102,3 +102,22 @@ def test_run_backtest_invalid_model_type_raises(tmp_path):
     csv = _make_csv(tmp_path, [["2022-11-20","France","Brazil",2,1]])
     with pytest.raises(ValueError, match="model_type"):
         run_backtest(csv, ratings, model_type="invalid")
+
+
+def test_rho_changes_dixon_coles_results(tmp_path):
+    ratings = _minimal_ratings()
+    csv = _make_csv(tmp_path, [["2022-11-20","France","Brazil",2,1]])
+    r1 = run_backtest(csv, ratings, model_type="dixon_coles", rho=-0.10)[0]
+    r2 = run_backtest(csv, ratings, model_type="dixon_coles", rho=-0.25)[0]
+    # Different rho values should produce different win probabilities
+    assert abs(r1.win_a_prob - r2.win_a_prob) > 1e-6
+
+
+def test_rho_ignored_for_poisson_model(tmp_path):
+    ratings = _minimal_ratings()
+    csv = _make_csv(tmp_path, [["2022-11-20","France","Brazil",2,1]])
+    r1 = run_backtest(csv, ratings, model_type="poisson", rho=-0.10)[0]
+    r2 = run_backtest(csv, ratings, model_type="poisson", rho=-0.99)[0]
+    # rho is ignored for Poisson — results must be identical
+    assert r1.win_a_prob == r2.win_a_prob
+    assert r1.draw_prob == r2.draw_prob
