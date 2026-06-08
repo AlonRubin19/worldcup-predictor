@@ -2,40 +2,40 @@ date,team_a,team_b,team_a_goals,team_b_goals
 2022-11-20,Ecuador,Qatar,2,0
 2022-11-21,England,Iran,6,2
 2022-11-21,Senegal,Netherlands,0,2
-2022-11-22,USA,Wales,1,1
+2022-11-21,USA,Wales,1,1
 2022-11-22,Argentina,Saudi Arabia,1,2
 2022-11-22,Denmark,Tunisia,0,0
-2022-11-23,Mexico,Poland,0,0
-2022-11-23,France,Australia,4,1
-2022-11-24,Morocco,Croatia,0,0
-2022-11-24,Germany,Japan,1,2
-2022-11-24,Spain,Costa Rica,7,0
-2022-11-25,Belgium,Canada,1,0
-2022-11-25,Switzerland,Cameroon,1,0
-2022-11-26,Uruguay,South Korea,0,0
-2022-11-26,Portugal,Ghana,3,2
-2022-11-27,Brazil,Serbia,2,0
-2022-11-28,France,Denmark,2,1
-2022-11-28,Argentina,Mexico,2,0
-2022-11-29,Japan,Costa Rica,0,1
-2022-11-29,Germany,Spain,1,1
-2022-11-30,Belgium,Morocco,0,2
-2022-11-30,Croatia,Canada,4,1
-2022-12-01,Brazil,Switzerland,1,0
-2022-12-01,Portugal,Uruguay,2,0
-2022-12-02,South Korea,Ghana,2,3
-2022-12-02,Cameroon,Serbia,3,3
+2022-11-22,Mexico,Poland,0,0
+2022-11-22,France,Australia,4,1
+2022-11-23,Morocco,Croatia,0,0
+2022-11-23,Germany,Japan,1,2
+2022-11-23,Spain,Costa Rica,7,0
+2022-11-23,Belgium,Canada,1,0
+2022-11-24,Switzerland,Cameroon,1,0
+2022-11-24,Uruguay,South Korea,0,0
+2022-11-24,Portugal,Ghana,3,2
+2022-11-24,Brazil,Serbia,2,0
+2022-11-26,France,Denmark,2,1
+2022-11-26,Argentina,Mexico,2,0
+2022-11-27,Japan,Costa Rica,0,1
+2022-11-27,Germany,Spain,1,1
+2022-11-27,Belgium,Morocco,0,2
+2022-11-27,Croatia,Canada,4,1
+2022-11-28,Brazil,Switzerland,1,0
+2022-11-28,Portugal,Uruguay,2,0
+2022-11-28,South Korea,Ghana,2,3
+2022-11-28,Cameroon,Serbia,3,3
 2022-12-03,Argentina,Australia,2,1
-2022-12-03,France,Poland,3,1
+2022-12-04,France,Poland,3,1
 2022-12-04,England,Senegal,3,0
-2022-12-04,Netherlands,USA,3,1
+2022-12-03,Netherlands,USA,3,1
 2022-12-05,Japan,Croatia,1,1
 2022-12-05,Brazil,South Korea,4,1
 2022-12-06,Morocco,Spain,0,0
 2022-12-06,Portugal,Switzerland,6,1
 2022-12-09,Argentina,Netherlands,2,2
-2022-12-09,France,England,2,1
+2022-12-10,France,England,2,1
 2022-12-10,Morocco,Portugal,1,0
-2022-12-10,Croatia,Brazil,1,1
+2022-12-09,Croatia,Brazil,1,1
 2022-12-13,Argentina,Croatia,3,0
 2022-12-14,France,Morocco,2,0
