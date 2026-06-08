@@ -1,7 +1,7 @@
 # Phase 2 Architecture — Research-Grade Football Prediction Engine
 
 **Date:** 2026-06-08  
-**Status:** Design only — no implementation  
+**Status:** Approved  
 **Scope:** Path from V6 (structurally valid infrastructure, placeholder data) to a World Cup-ready prediction system
 
 ---
@@ -10,7 +10,7 @@
 
 The current system (V6) has sound mathematical models (Poisson, Dixon-Coles, rho tuning) and a complete backtesting pipeline. Its only critical gap is data quality: all team ratings are manually estimated, and pre-match statistics are placeholder values.
 
-Phase 2 resolves this in five ordered modules. Each module is independently deployable — the system improves incrementally rather than requiring a full rewrite.
+Phase 2 resolves this in six ordered modules. Each module is independently deployable — the system improves incrementally rather than requiring a full rewrite.
 
 **Key principle:** Every input to the prediction engine must be traceable to a specific external source, timestamped before the match it predicts, and verifiable against a public record. No AI-assigned values, no editorial judgment.
 
@@ -29,33 +29,52 @@ Phase 2 resolves this in five ordered modules. Each module is independently depl
 | ELO ratings | ❌ Hand-coded approximations |
 | Attack/defense stats | ❌ Fabricated |
 | Squad intelligence | ❌ Not modelled |
+| Player impact metrics | ❌ Not modelled |
+| Market intelligence | ❌ Not modelled |
 | Tournament context | ❌ Not modelled |
 | Tactical data | ❌ Not modelled |
 
 ---
 
-## Module 1: Real Data Layer
+## Module Priority and ROI Summary
 
-**Purpose:** Replace all placeholder data with sourced, timestamped, verifiable pre-match statistics.
+| # | Module | Prediction Gain | Implementation Complexity | ROI |
+|---|---|---|---|---|
+| 1 | Real Data Layer | **Foundational** — unlocks all other modules | Low — scripting and API calls | **Must-do first** |
+| 2 | Opponent Strength Adjustment | Brier −4 to −8 pp | Medium — MLE math, parameter fitting | **Highest ROI** |
+| 3 | Player Impact Engine | Brier −2 to −5 pp | Medium-High — player data sourcing | **High ROI** |
+| 4 | Market Intelligence Layer | Model calibration signal (no direct Brier gain) | Low — odds scraping/API | **High ROI for low effort** |
+| 5 | Tournament Context | Brier −1 to −3 pp | Low — schedule-derived rules | **Good ROI** |
+| 6 | Tactical Matchups | Brier −1 to −3 pp | High — tactical data hard to source free | **Lower ROI, higher ceiling** |
+
+Reading the table: implement in order 1 → 2 → 3 → 4 → 5 → 6. Modules 3 and 4 can run in parallel once Module 2 is complete.
+
+---
+
+## Module 1 — Real Data Layer
+
+### Purpose
+
+Replace all placeholder data with sourced, timestamped, verifiable pre-match statistics.
 
 ### Required Data
 
 | Field | Description |
 |---|---|
 | Pre-match ELO | Each team's ELO rating the day before the match |
-| Goals scored (last 10) | Average goals per game in the 10 most recent internationals before this match |
+| Goals scored (last 10) | Average goals per game in the 10 most recent internationals |
 | Goals conceded (last 10) | Average goals conceded per game, same window |
 | Points per game (last 10) | Average points (W=3, D=1, L=0) per game, same window |
 | Matches available | Count of actual historical matches in the window (may be < 10) |
-| Venue type | Neutral / Home / Away (all WC matches are neutral, but qualifiers are not) |
+| Venue type | Neutral / Home / Away |
 
 ### Sources
 
 | Data type | Source | Access | Cost |
 |---|---|---|---|
 | ELO ratings | [World Football Elo Ratings](https://www.eloratings.net) | Free download | Free |
-| International match results | [football-data.org](https://www.football-data.org) Competition API | Free tier (tier 1) | Free with API key |
-| Results backup | [Kaggle — International Football Results 1872–present](https://www.kaggle.com/datasets/martj42/international-football-results-from-1872-to-2017) | Free download | Free |
+| International match results | [football-data.org](https://www.football-data.org) | Free tier API key | Free |
+| Results backup | [Kaggle — International Football Results](https://www.kaggle.com/datasets/martj42/international-football-results-from-1872-to-2017) | Free download | Free |
 
 ### Storage Schema
 
@@ -63,8 +82,6 @@ Phase 2 resolves this in five ordered modules. Each module is independently depl
 ```
 date, team, elo_rating
 2022-11-19, France, 2015
-2022-11-19, Brazil, 2044
-...
 ```
 One row per (date, team). Use the row with the largest date ≤ match_date for lookup.
 
@@ -72,332 +89,591 @@ One row per (date, team). Use the row with the largest date ≤ match_date for l
 ```
 match_id, date, team_a, team_b, team_a_goals, team_b_goals, venue_type
 ```
-Complete international results back to at least 2015 (covers 10 prior matches for all WC 2022 participants).
+Complete international results back to at least 2015.
 
-**`data/pre_match_team_stats.csv`** (replaces placeholder)
-Generated by `scripts/fetch_pre_match_stats.py`, which joins the above two sources for each match in `historical_matches.csv`. Format unchanged — just sourced values instead of placeholder.
+**`data/pre_match_team_stats.csv`** (replaces placeholder)  
+Generated by `scripts/fetch_pre_match_stats.py` from the above sources.
 
 ### Update Frequency
 
-- **ELO:** Download after each international window (~6 times/year). Point-in-time snapshot required — do not overwrite historical values.
-- **Match results:** After each match day. football-data.org provides near-real-time updates.
-- **Pre-match stats:** Regenerate `pre_match_team_stats.csv` before each tournament from the above sources.
+- **ELO:** After each international window (~6×/year). Point-in-time snapshot required.
+- **Match results:** After each match day.
+- **Pre-match stats:** Regenerated before each tournament.
 
-### Expected Impact on Prediction Quality
+### Prediction Quality Contribution
 
-**High — this is the foundational blocker.** All downstream modules depend on real data. Replacing placeholder stats with real pre-match data is the single change most likely to change backtesting results meaningfully.
+| Metric | Assessment |
+|---|---|
+| **Brier score impact** | Unknown until measured — the current illustrative baseline is meaningless |
+| **Why it matters** | All downstream module improvements are additive on top of this |
+| **Risk** | Low — real data will not be worse than fabricated placeholder data |
 
-Estimated change in Brier score: unknown until sourced, but the illustrative backtest (0.5386 for Dixon-Coles rho=-0.20) is not a meaningful baseline. A real out-of-sample result may be better or worse.
+### Implementation Complexity
+
+**Low.** Primarily scripting and HTTP calls. No new mathematical models.
+
+| Task | Effort |
+|---|---|
+| Register football-data.org API key | 15 min |
+| Write `scripts/fetch_pre_match_stats.py` | 3–4 hours |
+| Download and parse eloratings.net | 1 hour |
+| Validate output against known values | 1 hour |
+| **Total** | **~1 week** |
+
+### ROI
+
+**Must-do.** This is not optional — it is the prerequisite for every other module. The ROI is infinite in the sense that without it, nothing else can be validated.
 
 ---
 
-## Module 2: Opponent Strength Adjustment
+## Module 2 — Opponent Strength Adjustment
 
-**Purpose:** Correct the raw goals averages for the quality of opponents faced. A team that scored 3 goals against weak CONCACAF opponents looks better than one that scored 1 goal against Brazil — but the second team may actually have the stronger attack.
+### Purpose
+
+Correct raw goals averages for the quality of opponents faced. A team scoring 2.1 goals/game against Luxembourg and Kazakhstan is not equivalent to one scoring 2.1 against Germany and Brazil.
 
 ### The Problem with Raw Averages
 
-The current formula treats:
+The current formula:
 ```
 attack_a = goals_for_last_10 / 1.35
 ```
 
-If France scored 2.1 goals/game against a mix of Luxembourg, Kazakhstan, and Belgium, the 2.1 is inflated by weak opponents. A team that scored 1.3/game but played Germany, Spain, and England every game has a stronger attack in reality.
+Has no mechanism for who those goals were scored against. This is the most significant known bias in simple goal-average models.
 
-### Required Data
+### Method: Dixon-Coles/Maher Maximum Likelihood Estimation
 
-- All 10 historical results with opponent identities (not just the goal averages)
-- Each opponent's defense rating (requires iterative computation — see below)
-
-### Method: Dixon-Coles Attack/Defense Parameters (MLE)
-
-The academically standard approach (Dixon & Coles, 1997; Maher, 1982) estimates separate attack (α) and defense (β) parameters for each team by maximizing the likelihood of observed results:
+Estimate separate attack (α) and defense (β) parameters for each team via MLE:
 
 ```
-λ_home = α_home * β_away * γ   (home advantage factor γ ≈ 1.2 for internationals)
-λ_away = α_away * β_home
+λ_a = α_a × β_b × γ   (γ = venue factor, ≈1.0 for neutral WC)
+λ_b = α_b × β_a
 ```
 
-These parameters are fit by maximum likelihood estimation (MLE) over all recent matches. The result is a pair of real-valued parameters per team that encode attack and defense strength on an absolute scale, adjusted for who they played.
+Parameters are fit by maximising the log-likelihood of observed results over the last N matches, with exponential time decay (weight = 0.99^days_ago) so recent form counts more.
 
 ### Storage Schema
 
 **`data/team_strength_params.csv`**
 ```
-team, alpha_attack, beta_defense, as_of_date, matches_used
-France, 1.52, 0.71, 2022-11-19, 24
-Brazil, 1.48, 0.74, 2022-11-19, 26
-...
+team, alpha_attack, beta_defense, as_of_date, matches_used, decay_halflife_days
+France, 1.52, 0.71, 2022-11-19, 24, 90
+Brazil, 1.48, 0.74, 2022-11-19, 26, 90
 ```
-
-Recomputed before each tournament from the last N matches (recommended: 30 matches, time-discounted with exponential decay weight = 0.99^days_ago).
 
 ### Update Frequency
 
-Recomputed monthly or after each international window. The MLE fit takes < 1 second for 50 teams.
-
-### Expected Impact
-
-**Very High.** This is the most significant modelling improvement available. The raw goals average has a known opponent-quality bias. Replacing it with MLE-estimated attack/defense parameters is the standard in academic football prediction literature and is expected to improve Brier score by 3–8% on international data.
+Monthly or after each international window. Fit takes < 1 second for 50 teams.
 
 ### Integration Point
 
-Replace `calculate_pre_match_xg()` with `calculate_strength_adjusted_xg()` that reads `team_strength_params.csv` instead of raw goal averages from `pre_match_team_stats.csv`. All downstream code (runner, app, backtest) is unchanged.
+Replaces `calculate_pre_match_xg()` with `calculate_strength_adjusted_xg()`. All downstream code unchanged.
+
+### Prediction Quality Contribution
+
+| Metric | Assessment |
+|---|---|
+| **Brier score improvement** | −4 to −8 percentage points on international football data |
+| **Published evidence** | Dixon & Coles (1997) demonstrated this on English league; Koopman & Lit (2015) on international data |
+| **Where it helps most** | Matches involving teams from weak confederations (CONCACAF, AFC) whose raw stats are inflated by weak opposition |
+| **Limitation** | Requires ≥20 matches per team for stable estimates; smaller windows increase variance |
+
+### Implementation Complexity
+
+**Medium.** The MLE optimisation is a standard scipy call. The main challenge is correct implementation of time-weighting and ensuring the system uses only pre-match data.
+
+| Task | Effort |
+|---|---|
+| Implement `src/models/mle_fitter.py` | 1 day |
+| Validate: parameters correlate with known rankings | half day |
+| Implement `calculate_strength_adjusted_xg()` | half day |
+| Backtest comparison raw vs. MLE | 1 hour |
+| **Total** | **~2 weeks** |
+
+### ROI
+
+**Highest in Phase 2.** The largest modelling gap in the current system is opponent-quality bias. Fixing it with a mathematically sound method is the single highest-return investment.
 
 ---
 
-## Module 3: Squad Intelligence
+## Module 3 — Player Impact Engine
 
-**Purpose:** Adjust xG for the actual squad available, not the average squad. A team missing its starting goalkeeper and two key attackers will score fewer and concede more than their historical average suggests.
+### Purpose
 
-### The Problem
+Generate a dynamic Starting XI Strength score that reflects actual player-level contributions rather than squad market value alone. Market value is a useful proxy, but it conflates age, transfer fees, and positional scarcity. Player impact metrics directly measure what actually determines outcomes: goals, assists, defensive actions, and current form.
 
-Historical goal averages assume the team fields its normal squad. When Salah misses a tournament, Egypt's attack profile changes significantly. The current model has no mechanism for this.
+### Player-Level Metrics
 
-### Required Data
+| Metric | Description | Why it matters |
+|---|---|---|
+| **Minutes played** (club + national) | Playing time in last 90 days, club + international | Determines fitness, current match-sharpness |
+| **Goals** | Goals in last 10 national team appearances | Direct attacking contribution |
+| **Assists** | Assists in last 10 national team appearances | Chance creation, secondary attacking contribution |
+| **xG contribution** | Expected goals generated per 90 min | Attack quality independent of finishing luck |
+| **xA contribution** | Expected assists per 90 min | Chance creation quality |
+| **Defensive contribution** | Pressures, tackles, interceptions per 90 min | Defensive effectiveness beyond clean sheets |
+| **International caps** | Total career international appearances | Experience proxy, pressure handling |
+| **Recent form rating** | Composite form score (last 5 club games) | Current confidence and sharpness |
+| **Injury/suspension status** | Available / Doubtful / Out | Hard availability constraint |
 
-| Data type | Description |
-|---|---|
-| Official squad list | 26-man squad submitted to FIFA before the tournament |
-| Injury/suspension flags | Per-match availability (updated daily during tournament) |
-| Player ratings | Market value (Transfermarkt) or FIFA/FBref metrics as a proxy for player quality |
-| Position coverage | Whether the absence affects attack, defense, midfield, or GK |
+### Starting XI Strength Score
+
+For each match, compute an expected XI strength:
+
+```
+xi_strength = Σ(impact_score_i × availability_i × form_weight_i) / 11
+```
+
+Where:
+- `impact_score_i` = player's composite impact (normalised 0–1 within position group)
+- `availability_i` = 1.0 (available), 0.6 (doubtful), 0.0 (out)
+- `form_weight_i` = 0.7–1.3 based on last 5 club performances
+
+The team's `xi_strength` is normalised against their season baseline, producing a `squad_factor` multiplier applied to xG:
+
+```
+xg_a *= (xi_strength_a / xi_strength_baseline_a)
+```
+
+This is a conceptual improvement over market value: it is:
+1. Dynamic (updated per-match based on form)
+2. Performance-based (not transfer-market-based)
+3. Availability-aware (absence of a doubtful player partially reduces it)
 
 ### Sources
 
-| Data type | Source | Access |
-|---|---|---|
-| Squad lists | FIFA official portal / BBC Sport | Free, scrape or manual |
-| Injury news | Transfermarkt injury table | Free |
-| Player market values | Transfermarkt | Free scrape |
-| Player stats (goals, assists, rating) | FBref (StatsBomb open data) | Free |
+| Data type | Source | Access | Cost |
+|---|---|---|---|
+| xG, xA, defensive metrics | [FBref](https://fbref.com) (StatsBomb open data) | Free scrape | Free |
+| Minutes played | FBref | Free | Free |
+| Recent club form | FBref / Understat | Free | Free |
+| Injury/suspension status | [Transfermarkt](https://www.transfermarkt.com) injury table | Free scrape | Free |
+| Squad announcements | FIFA / national FA press releases | Free | Free |
 
 ### Storage Schema
 
-**`data/squad_profiles.csv`**
+**`data/player_profiles.csv`**
 ```
-team, tournament, player_name, position, market_value_eur, available, caps, goals, assists
-France, WC2022, Kylian Mbappé, FW, 180000000, true, 61, 31, 22
-France, WC2022, Karim Benzema, FW, 45000000, false, 97, 37, 19
-...
+player_id, name, team, position, caps, goals_intl, assists_intl, 
+xg_per90_intl, xa_per90_intl, defensive_per90_intl,
+club_minutes_last90days, club_form_last5, market_value_eur
 ```
 
 **`data/match_availability.csv`**
 ```
-match_id, team, player_name, status
-5, France, Benzema, injured
-5, France, Mbappé, available
-...
+match_id, team, player_id, status, xi_probability
+5, France, p42, available, 0.95
+5, France, p71, doubtful, 0.40
+5, France, p18, out, 0.00
 ```
 
-### Squad Quality Score
-
-A single float per team per match representing the relative strength of the available squad vs. their full-squad baseline:
-
+**`data/xi_strength_scores.csv`**
 ```
-squad_factor = sum(market_value * available) / sum(market_value_full_squad)
-```
-
-Normalised to 1.0 = full squad available. Applied as a multiplicative factor in the xG formula:
-
-```
-xg_a *= squad_factor_a
-xg_b *= squad_factor_b
+match_id, team, xi_strength, xi_strength_baseline, squad_factor
+5, France, 0.87, 0.91, 0.956
+5, Brazil, 0.93, 0.92, 1.011
 ```
 
 ### Update Frequency
 
-- **Squad profiles:** Once per tournament, at squad announcement.
-- **Match availability:** 24 hours before each match (injury news window).
+- **Player profiles:** Monthly and after each international window.
+- **Match availability:** 24–48 hours before each match (peak injury news window).
+- **Form scores:** Updated after each round of club fixtures.
 
-### Expected Impact
+### Prediction Quality Contribution
 
-**Medium — high variance.** For most matches this adds noise with little signal. For matches involving a significant absence (top goalkeeper, key striker), the impact can be 5–15% shift in win probability. The challenge is getting reliable pre-match availability data.
+| Metric | Assessment |
+|---|---|
+| **Brier score improvement** | −2 to −5 pp over Module 2 baseline |
+| **Where it helps most** | Matches where a first-choice goalkeeper or primary striker is absent; underperforming squads (e.g. Belgium 2022 aging core); in-form strikers who outpace their historical averages |
+| **Advantage over market value** | Market value is a lagging indicator; xG/form metrics respond within weeks |
+| **Key limitation** | Injury data is noisy and often confirmed only hours before kickoff. Models using it need a fallback for late-breaking news |
+
+### Implementation Complexity
+
+**Medium-High.** Sourcing player-level data requires scraping multiple sites, reconciling player identities across sources, and maintaining a player registry. The mathematical model is straightforward once the data exists.
+
+| Task | Effort |
+|---|---|
+| Build player identity registry (name → consistent ID) | 1 day |
+| Scrape FBref for xG/xA/defensive per player per tournament | 1 day |
+| Implement `compute_xi_strength()` | half day |
+| Implement `apply_squad_factor()` using XI strength | half day |
+| Validate: absences shift predictions correctly | half day |
+| **Total** | **~3 weeks** |
+
+### ROI
+
+**High.** Player absence is one of the most actionable sources of prediction edge and is systematically undermodelled by ELO-only systems. The effort is in data sourcing, not in mathematics.
 
 ---
 
-## Module 4: Tournament Context
+## Module 4 — Market Intelligence Layer
 
-**Purpose:** Adjust predictions for known situational factors that change a team's incentive structure and physical state.
+### Purpose
+
+Track opening odds, closing odds, and odds movement to calibrate our model against the aggregate of professional oddsmakers and identify systematic divergences. The goal is **not** to copy the market but to use market disagreement as a signal.
+
+### The Value of Odds Data
+
+Betting markets aggregate information from thousands of professional and semi-professional analysts. Closing odds are consistently demonstrated to be among the most accurate pre-match probability estimates available. They incorporate:
+- All public information (team news, form, weather)
+- Significant private information (injury whispers, motivation intelligence)
+- Self-correcting feedback (arbitrage eliminates bias quickly)
+
+Our model has a different information set — it focuses on structured statistics (xG, form, strength parameters) and may see what the market misses in data-driven signals, while missing what the market sees in soft information.
+
+**The goal:** Identify matches where our model disagrees with the market by > X probability points, and understand whether those disagreements are systematic (our model has a genuine edge) or random (our model is wrong).
+
+### Metrics Tracked
+
+| Metric | Description | Purpose |
+|---|---|---|
+| **Opening odds** | Win/Draw/Win odds at market open (typically 48–72h pre-match) | Establishes market baseline before most public money arrives |
+| **Closing odds** | Odds at market close (kickoff) | Best estimate of true market probability |
+| **Odds movement** | Δ(closing − opening) | Reveals late information: significant movement toward one team suggests insider news |
+| **Asian handicap** | Handicap line (e.g. −0.5, −1.0) | More precise market assessment of expected margin |
+| **Over/Under line** | Total goals expected | Market estimate of total match intensity |
+| **Implied probability** | Convert odds to probabilities (adjust for overround) | Comparable to our model's win/draw/win outputs |
+
+### Divergence Signal
+
+For each match, compute:
+
+```
+divergence_a = our_model_win_a_prob - market_implied_win_a_prob
+```
+
+Positive divergence = our model thinks Team A is stronger than the market.
+Track divergence accuracy over time: if our model has positive divergence accuracy, it has genuine edge.
+
+### Sources
+
+| Data type | Source | Access | Cost |
+|---|---|---|---|
+| Historical odds (WC 2022 and others) | [football-data.co.uk](https://www.football-data.co.uk) | Free CSV download | Free |
+| Live / current odds API | [The Odds API](https://the-odds-api.com) | Free tier (500 req/month) | Free / ~$10/month |
+| Asian handicap historical | Pinnacle historical data (via academic research releases) | Limited free | Free (partial) |
+| BetExplorer | Manual / free scrape | Free | Free |
+
+### Storage Schema
+
+**`data/match_odds.csv`**
+```
+match_id, date, team_a, team_b,
+open_odds_a, open_odds_draw, open_odds_b,
+close_odds_a, close_odds_draw, close_odds_b,
+asian_handicap_line, over_under_line,
+implied_prob_a, implied_prob_draw, implied_prob_b
+```
+
+**`data/model_vs_market.csv`**  
+Generated post-prediction, pre-match:
+```
+match_id, our_win_a, our_draw, our_win_b,
+market_win_a, market_draw, market_win_b,
+divergence_a, divergence_b,
+asian_handicap_agreement, ou_agreement
+```
+
+### What the App Shows
+
+In the Streamlit Backtesting tab, a new "Market Comparison" section:
+- For each historical match: our probability vs. market implied probability
+- Divergence scatter plot: our model vs. market, coloured by actual outcome
+- Calibration chart: are our probabilities as well-calibrated as the market?
+- Edge detection table: matches where divergence was large and we were correct vs. incorrect
+
+For live predictions:
+- Side-by-side: Our model vs. current market odds
+- Highlight cell when divergence > 8 pp (meaningful disagreement)
+
+### Update Frequency
+
+- **Historical:** One-time download of football-data.co.uk archives.
+- **Pre-tournament:** Fetch opening odds 72h before each match.
+- **Match day:** Fetch closing odds 2h before kickoff.
+
+### Prediction Quality Contribution
+
+| Metric | Assessment |
+|---|---|
+| **Direct Brier improvement** | **None** — this module does not modify the xG calculation |
+| **Calibration signal** | High — shows where our model is systematically over or underconfident |
+| **Edge identification** | The primary value: identifies which module improvements actually help vs. the market |
+| **Meta-value** | Without this module, we cannot know if our model is actually good or just coherent |
+
+### Implementation Complexity
+
+**Low.** Odds APIs are well-documented. football-data.co.uk provides free historical data as Excel downloads. The analysis (divergence, calibration charts) is standard pandas operations.
+
+| Task | Effort |
+|---|---|
+| Download football-data.co.uk WC 2022 odds | 30 min |
+| Build `data/match_odds.csv` schema | 1 hour |
+| Implement implied probability converter (overround removal) | 1 hour |
+| Implement divergence calculation | 1 hour |
+| Add Market Comparison section to Streamlit | 2 hours |
+| **Total** | **~1 week** |
+
+### ROI
+
+**High for low effort.** This module does not improve Brier score directly, but it is the only module that tells you whether your improvements are genuine signal or noise relative to the best available benchmark. Without it, you cannot prioritise future work rationally.
+
+---
+
+## Module 5 — Tournament Context
+
+### Purpose
+
+Adjust predictions for known situational factors that change a team's incentive structure and physical state.
 
 ### Context Factors
 
 | Factor | Effect | Data source |
 |---|---|---|
 | **Rest days** | Fewer rest days → fatigue penalty | Match schedule |
-| **Rotation likelihood** | Already qualified group leaders rotate squads | Group stage table |
-| **Must-win pressure** | Elimination pressure increases variance (more attacking, higher scoring) | Group stage table |
-| **Altitude** | Reduces scoring rates by ~8% at >2000m | Venue data |
-| **Neutral venue** | No traditional home advantage, but crowd support can vary | Venue data |
-| **Knockout penalty pressure** | Draws go to extra time/pens — teams are more conservative | Match type |
+| **Rotation likelihood** | Already-qualified group leaders rotate squads | Group stage table |
+| **Must-win pressure** | Elimination pressure increases variance (more attacking) | Group stage table |
+| **Altitude** | Reduces scoring rates ~8% at >2000m | Venue geodata |
+| **Neutral venue** | No traditional home advantage | Match metadata |
+| **Knockout context** | Teams more conservative when draw sends to extra time | Match type |
 
 ### Storage Schema
 
 **`data/match_context.csv`**
 ```
-match_id, team_a_rest_days, team_b_rest_days, 
+match_id, team_a_rest_days, team_b_rest_days,
 team_a_rotation_likely, team_b_rotation_likely,
 team_a_must_win, team_b_must_win,
-venue_altitude_m, venue_type
+venue_altitude_m, venue_type, match_type
 ```
 
-### Rest Days Adjustment
+### Adjustment Formulas
 
 ```
-rest_factor = 1.0  (baseline, 7+ days)
-            = 0.97 (5–6 days)
-            = 0.93 (3–4 days)
-            = 0.88 (<3 days, e.g. second leg of knockout)
+rest_factor:
+  7+ days → 1.00 (baseline)
+  5–6 days → 0.97
+  3–4 days → 0.93
+  <3 days  → 0.88
+
+rotation_factor (when detected):
+  0.85 (expected first-choice squad quality reduction)
+
+altitude_factor (venue > 2000m):
+  0.92 (both teams, equally)
+
+must_win_variance:
+  increase predicted xG by 10% for the team needing a win
+  (they will attack more, allowing more counter-attacking chances for opponent)
 ```
-
-Applied as `xg_a *= rest_factor_a`.
-
-### Rotation Adjustment
-
-When a team has already qualified from the group stage with maximum points and the match has no bearing on their group position, starting XI quality drops by an estimated 10–20%. Apply as a `squad_factor` reduction of 0.85.
 
 ### Update Frequency
 
-Computable from the tournament schedule and live group table. Updated after each match.
+Computable from tournament schedule and live group table. Updated after each group stage result.
 
-### Expected Impact
+### Prediction Quality Contribution
 
-**Medium.** Rest days matter most in the group stage when teams play 3 matches in 9 days. The knockout stage typically has adequate rest. The biggest individual impact is rotation detection — when a major nation rests its squad, the prediction model would otherwise severely overestimate them.
+| Metric | Assessment |
+|---|---|
+| **Brier score improvement** | −1 to −3 pp over Module 3 baseline |
+| **Where it helps most** | Group stage final rounds (rotation), knockout second legs with short rest, high-altitude venues |
+| **Limitation** | Rotation detection is probabilistic — a team may rest players even when not mathematically necessary, or play full strength when rotation is expected |
+
+### Implementation Complexity
+
+**Low.** All factors are derivable from the match schedule and group table. No new data sources required beyond what Module 1 provides.
+
+| Task | Effort |
+|---|---|
+| Implement rest days calculation | 2 hours |
+| Implement rotation detector | 1 day |
+| Hardcode altitude for WC venues | 1 hour |
+| Integrate all factors into prediction pipeline | half day |
+| **Total** | **~1–2 weeks** |
+
+### ROI
+
+**Good.** Low implementation complexity for a meaningful gain on situational matches. Rotation detection alone prevents large overestimation errors (a fully rotated squad can shift expected goals by 15–25%).
 
 ---
 
-## Module 5: Tactical Matchup Engine
+## Module 6 — Tactical Matchup Engine
 
-**Purpose:** Adjust for systematic tactical advantages and disadvantages between specific playing styles.
+### Purpose
+
+Adjust for systematic advantages and disadvantages between specific playing styles that are invisible to strength-based models.
 
 ### The Core Insight
 
-Poisson and Dixon-Coles treat goals as independent Poisson processes parameterised only by overall strength. They ignore the fact that:
-- A high-pressing team (e.g. Germany 2022 era) scores more against low-block teams but struggles against deep-sitting teams
-- A team strong on set pieces (Morocco 2022) scores above their open-play xG in matches against teams that give away many corners and free kicks
-- Counter-attacking teams overperform their possession-based xG when facing possession-dominant opponents
+Poisson and Dixon-Coles treat goals as independent processes parameterised only by overall strength. They ignore that:
+- High-pressing teams overperform against low-block teams but underperform against counter-attacking teams
+- Set-piece specialists score above their open-play xG against teams that concede many dead-ball situations
+- Possession-dominant teams facing deep defences are systematically overestimated by raw xG models
 
-### Required Data
+### Key Tactical Metrics
 
 | Metric | Description | Source |
 |---|---|---|
-| PPDA | Passes Allowed Per Defensive Action — measures pressing intensity | FBref / Opta |
-| Formation | Starting formation (4-3-3, 5-4-1, etc.) | Match reports / FBref |
-| Set piece goals | % of goals from set pieces vs. open play | FBref |
-| Deep block rate | % of defensive actions in own half | Opta / StatsBomb |
-| Possession share | Average possession % in last 10 matches | football-data.org |
+| **PPDA** | Passes Per Defensive Action — pressing intensity | FBref / StatsBomb |
+| **Formation** | Starting shape (4-3-3, 5-4-1, etc.) | FBref / match reports |
+| **Possession share** | Average possession % | football-data.org |
+| **Set piece goal %** | % of goals from set pieces vs. open play | FBref |
+| **Deep block rate** | % of defensive actions in own half | Opta / StatsBomb |
+| **Counter-attack goal %** | % of goals via transitions | StatsBomb (commercial) |
+
+### Press/Block Interaction Matrix
+
+Fit from 3 years of international results. Format (additive xG adjustment):
+
+```
+                    vs. Deep Block | vs. Mid Block | vs. High Line
+High Press              +0.12            0.00           −0.08
+Mid Press               +0.03            0.00           −0.02
+Counter/Low Press       −0.06            0.00           +0.07
+```
 
 ### Storage Schema
 
 **`data/tactical_profiles.csv`**
 ```
-team, as_of_date, ppda, avg_possession, set_piece_goal_pct, 
-formation_primary, deep_block_rate, press_intensity_tier
-France, 2022-11-19, 8.2, 58.3, 0.24, 4-3-3, 0.31, high
-Morocco, 2022-11-19, 14.1, 42.1, 0.41, 4-5-1, 0.68, low
+team, as_of_date, ppda, avg_possession, set_piece_goal_pct,
+formation_primary, deep_block_rate, press_tier, block_tier
 ```
 
-### Matchup Adjustment Matrix
-
-A 3×3 interaction matrix (high/mid/low press vs. high/mid/low block) capturing historical over/underperformance relative to expected:
-
+**`data/press_block_matrix.csv`**
 ```
-         vs. high block | vs. mid block | vs. low block
-high press    +0.12           0.00           -0.08
-mid press     +0.03           0.00           -0.02
-low press     -0.06           0.00           +0.07
+press_tier, block_tier, xg_adjustment
+high, deep, +0.12
+high, mid, 0.00
+...
 ```
-
-These coefficients are fit from historical international data and applied as an additive adjustment to xG.
 
 ### Sources
 
-| Metric | Source | Access | Cost |
+| Data type | Source | Access | Cost |
 |---|---|---|---|
 | PPDA, possession | FBref (StatsBomb open data) | Free | Free |
 | Formation data | FBref / Soccerway | Free scrape | Free |
 | Advanced metrics | StatsBomb full dataset | Commercial | £££ |
 | Opta | Commercial only | Commercial | £££ |
 
-**Practical note:** The free tier (FBref/StatsBomb open data) covers enough to compute PPDA, possession, and set piece rates. Full tactical detail requires a paid data feed.
+**Practical note:** Free tier (FBref) covers PPDA, possession, and set piece rates. Full tactical depth (counter-attack %, defensive line height) requires a paid feed.
 
 ### Update Frequency
 
 - **Tactical profiles:** Monthly or after each international window.
-- **Matchup coefficients:** Refit annually using last 3 years of international data.
+- **Press/block matrix:** Refit annually using last 3 years of international data.
 
-### Expected Impact
+### Prediction Quality Contribution
 
-**Medium in aggregate, high for specific matchups.** The average adjustment across all matches is small. But for stylistically mismatched pairs (high-press team vs. deep-block team), the tactical adjustment can shift win probability by 8–12 percentage points. Given that World Cup group stage upsets often follow predictable tactical patterns, this module captures residual signal the Poisson model cannot.
+| Metric | Assessment |
+|---|---|
+| **Brier score improvement** | −1 to −3 pp on aggregate; −8 to −12 pp on stylistically extreme matchups |
+| **Where it helps most** | High-press team vs. deep-block team (e.g. Germany vs. Morocco-style opponents); set-piece-reliant teams in high-stakes knockout matches |
+| **Limitation** | International football teams play fewer matches than clubs, making tactical profiles noisier. Formations change per-opponent. Free data coverage is thinner for non-European nations |
+
+### Implementation Complexity
+
+**High.** Tactical data requires scraping multiple sources, normalising metrics across different coverage standards (European teams are better covered), and fitting a coefficient matrix that requires careful validation to avoid overfitting to a small international sample.
+
+| Task | Effort |
+|---|---|
+| Scrape FBref for PPDA/possession/set pieces (WC 2022 teams) | 1 day |
+| Classify teams into press/block tiers | half day |
+| Fit interaction coefficient matrix | 2 days |
+| Implement `apply_tactical_factor()` | 1 day |
+| Validate on held-out stylistically extreme matches | 1 day |
+| **Total** | **~3–4 weeks** |
+
+### ROI
+
+**Lower ROI than earlier modules, but highest ceiling.** The average improvement across all matches is modest. For specific matchups — the ones that produce the most surprising World Cup results — tactical understanding is what separates a good prediction system from a great one. Implement last when the foundation is solid.
 
 ---
 
-## System Architecture — Phase 2
+## System Architecture — Full Phase 2
 
 ```
 External Sources
 │
-├── eloratings.net ──────────────────── ELO snapshots ──────────────────────┐
-├── football-data.org API ───────────── Match results, schedules ───────────┤
-├── Transfermarkt ───────────────────── Squad values, injuries ─────────────┤
-└── FBref / StatsBomb open data ─────── Tactical metrics ──────────────────┤
-                                                                              │
-                                         scripts/fetch_*.py                  │
-                                              │ writes                       │
-                        ┌─────────────────────┼──────────────────────────────┘
-                        ▼                     ▼
-              data/elo_history.csv    data/match_results.csv
-              data/squad_profiles.csv data/tactical_profiles.csv
-              data/match_context.csv  data/team_strength_params.csv
+├── eloratings.net ─────────────── ELO snapshots ────────────────────────────┐
+├── football-data.org API ──────── Match results, schedules, odds ───────────┤
+├── football-data.co.uk ────────── Historical odds (free CSVs) ─────────────┤
+├── The Odds API ───────────────── Live odds ────────────────────────────────┤
+├── Transfermarkt ──────────────── Player values, injuries ─────────────────┤
+└── FBref / StatsBomb open data ── Tactical metrics, player stats ───────────┘
+                                              │
+                              scripts/fetch_*.py  scripts/fit_*.py
+                                              │
+        ┌─────────────────────────────────────┼──────────────────────────────────┐
+        ▼                                     ▼                                  ▼
+data/elo_history.csv            data/team_strength_params.csv     data/match_odds.csv
+data/match_results.csv          data/player_profiles.csv          data/tactical_profiles.csv
+data/pre_match_team_stats.csv   data/match_availability.csv       data/match_context.csv
                         │                     │
-                        └─────────────┬───────┘
-                                      ▼
-                           src/data/pre_match_loader.py
-                           (loads and merges all sources)
-                                      │
-                                      ▼
-                         src/models/pre_match_xg.py
-                         (Module 1 formula: raw stats)
-                                      │
-                         + src/models/strength_adjusted_xg.py
-                           (Module 2: MLE attack/defense params)
-                                      │
-                         + src/models/squad_adjuster.py
-                           (Module 3: squad quality factor)
-                                      │
-                         + src/models/context_adjuster.py
-                           (Module 4: rest, rotation, altitude)
-                                      │
-                         + src/models/tactical_adjuster.py
-                           (Module 5: press/block interaction)
-                                      │
-                                      ▼
-                    Final xG (team_a, team_b) — two floats
-                                      │
-                                      ▼
-              src/models/poisson.py + src/models/dixon_coles.py
-                    (unchanged — consume xG, produce PredictionResult)
-                                      │
-                                      ▼
-              src/backtesting/{valid_runner.py, metrics.py, rho_tuning.py}
-                    (unchanged — consume PredictionResult)
-                                      │
-                                      ▼
-                              src/app/app.py
-                    (unchanged interface — displays results)
+                        └──────────┬──────────┘
+                                   ▼
+                      src/data/pre_match_loader.py
+                      (loads and merges all sources)
+                                   │
+                                   ▼
+              ┌────────────────────────────────────────────┐
+              │         xG Calculation Pipeline            │
+              │                                            │
+              │  1. calculate_pre_match_xg()               │  Module 1
+              │     (raw per-game averages)                │
+              │                                            │
+              │  2. apply_strength_adjustment()            │  Module 2
+              │     (MLE α/β parameters)                   │
+              │                                            │
+              │  3. apply_squad_factor()                   │  Module 3
+              │     (XI strength score)                    │
+              │                                            │
+              │  4. apply_context_factor()                 │  Module 5
+              │     (rest, rotation, altitude)             │
+              │                                            │
+              │  5. apply_tactical_factor()                │  Module 6
+              │     (press/block interaction)              │
+              └────────────────────────────────────────────┘
+                                   │
+                        Final xG (team_a, team_b)
+                                   │
+                    ┌──────────────┼──────────────────┐
+                    ▼              ▼                   ▼
+            Poisson model   Dixon-Coles model    [future models]
+                    │              │
+                    └──────┬───────┘
+                           ▼
+                    PredictionResult
+                           │
+           ┌───────────────┼──────────────────────┐
+           ▼               ▼                      ▼
+      valid_runner    Market Intelligence     Streamlit app
+      + metrics       comparison layer        (all tabs)
+           │
+           ▼
+    BacktestMetrics
 ```
 
-**The xG calculation is a pipeline of adjustments.** Each module is a function that takes the previous xG estimate and returns a modified one. They compose cleanly:
+**Module 4 (Market Intelligence)** sits parallel to the prediction pipeline — it does not modify xG but consumes the final prediction output and compares it to implied market probabilities.
+
+---
+
+## Composition in Code
+
+The xG pipeline is a sequence of independent adjusters:
 
 ```python
-xg_a, xg_b = calculate_pre_match_xg(match)          # Module 1: raw stats
-xg_a, xg_b = apply_strength_adjustment(xg_a, xg_b)  # Module 2: MLE params
-xg_a, xg_b = apply_squad_factor(xg_a, xg_b)         # Module 3: availability
-xg_a, xg_b = apply_context_factor(xg_a, xg_b)       # Module 4: rest/rotation
-xg_a, xg_b = apply_tactical_factor(xg_a, xg_b)      # Module 5: style matchup
+xg_a, xg_b = calculate_pre_match_xg(match)               # Module 1
+xg_a, xg_b = apply_strength_adjustment(xg_a, xg_b, params)  # Module 2
+xg_a, xg_b = apply_squad_factor(xg_a, xg_b, xi_scores)    # Module 3
+xg_a, xg_b = apply_context_factor(xg_a, xg_b, context)    # Module 5
+xg_a, xg_b = apply_tactical_factor(xg_a, xg_b, tactics)   # Module 6
 ```
 
-Each adjuster is independently testable and can be toggled on/off.
+Each adjuster is independently testable and togglable. The Poisson model, Dixon-Coles, rho tuning, backtesting, and Streamlit app require **no changes** — Phase 2 only changes what xG values go in.
 
 ---
 
@@ -405,133 +681,136 @@ Each adjuster is independently testable and can be toggled on/off.
 
 ### Milestone 1 — Valid Backtest (1–2 weeks)
 
-**Goal:** Replace placeholder data with real sourced data. Achieve a genuine out-of-sample evaluation.
+**Goal:** Real data in. Genuine out-of-sample evaluation established.
 
 | Task | Module | Effort |
 |---|---|---|
-| Register football-data.org API key | 1 | 15 min |
+| Register football-data.org API | 1 | 15 min |
 | Write `scripts/fetch_pre_match_stats.py` | 1 | 3–4 hours |
-| Download eloratings.net historical table | 1 | 30 min |
-| Source match results for all WC 2022 teams (last 10 pre-tournament) | 1 | 2–3 hours |
-| Regenerate `pre_match_team_stats.csv` | 1 | 30 min |
-| Re-run backtest; update status doc | 1 | 30 min |
+| Download eloratings.net historical data | 1 | 30 min |
+| Validate and regenerate `pre_match_team_stats.csv` | 1 | 1 hour |
+| Update `valid_backtest_status.md` | 1 | 30 min |
 
-**Success criteria:** `docs/valid_backtest_status.md` data validity = ✅. Brier score from real data replaces the 0.5249 placeholder.
+**Success criteria:** Data validity = ✅. Real Brier score established as baseline.
 
 ---
 
 ### Milestone 2 — Opponent Strength Adjustment (2–3 weeks)
 
-**Goal:** Implement MLE-based attack/defense parameter estimation. This is the highest-leverage modelling improvement.
+**Goal:** MLE-based attack/defense parameters replace raw goal averages.
 
 | Task | Module | Effort |
 |---|---|---|
-| Implement `src/models/mle_fitter.py` (scipy.optimize.minimize) | 2 | 1 day |
-| Validate: MLE parameters correlate with known team strength | 2 | half day |
-| Write `scripts/fit_team_params.py` producing `team_strength_params.csv` | 2 | 2–3 hours |
+| Implement `src/models/mle_fitter.py` | 2 | 1 day |
+| Write `scripts/fit_team_strength_params.py` | 2 | 2–3 hours |
 | Implement `calculate_strength_adjusted_xg()` | 2 | half day |
-| Backtest comparison: raw average vs. MLE-adjusted | 2 | 1 hour |
+| Backtest comparison: before vs. after | 2 | 1 hour |
 
-**Success criteria:** MLE-adjusted Brier score improves over raw goals average baseline on held-out matches.
-
----
-
-### Milestone 3 — Squad Intelligence (3–4 weeks)
-
-**Goal:** Flag squad changes and apply availability-adjusted xG.
-
-| Task | Module | Effort |
-|---|---|---|
-| Scrape or manually compile WC 2022 26-man squads | 3 | half day |
-| Implement `compute_squad_factor()` using market values | 3 | 1 day |
-| Integrate into valid runner pipeline | 3 | half day |
-| Backtest with/without squad adjustment; validate it helps | 3 | 1 hour |
-
-**Success criteria:** Backtest on matches with a major squad absence (e.g. Benzema, WC 2022) shows correct directional adjustment.
+**Success criteria:** MLE Brier < raw-average Brier on same held-out dataset.
 
 ---
 
-### Milestone 4 — Tournament Context (4–5 weeks, overlapping with 3)
+### Milestone 3 — Player Impact Engine (3–4 weeks)
 
-**Goal:** Automate rest days, rotation detection, and altitude adjustments.
+**Goal:** XI strength score from player metrics, not market value.
 
 | Task | Module | Effort |
 |---|---|---|
-| Implement `compute_rest_days()` from tournament schedule | 4 | 2 hours |
-| Implement rotation detector (group table + remaining matches) | 4 | 1 day |
-| Hardcode altitude data for known international venues | 4 | 1 hour |
-| Integrate all context factors into prediction pipeline | 4 | half day |
+| Build player identity registry | 3 | 1 day |
+| Scrape FBref for xG/xA/defensive per tournament | 3 | 1 day |
+| Implement `compute_xi_strength()` | 3 | half day |
+| Integrate `apply_squad_factor()` into valid runner | 3 | half day |
+| Validate on known absences (e.g. Benzema, WC 2022) | 3 | half day |
+
+**Success criteria:** Matches with confirmed key absences show correct directional probability shift.
+
+---
+
+### Milestone 4 — Market Intelligence Layer (1 week, parallel with M3)
+
+**Goal:** Historical and live odds loaded; divergence analysis in Streamlit.
+
+| Task | Module | Effort |
+|---|---|---|
+| Download football-data.co.uk WC 2022 odds | 4 | 30 min |
+| Build `data/match_odds.csv` | 4 | 1 hour |
+| Implement implied probability converter | 4 | 1 hour |
+| Implement divergence calculation | 4 | 1 hour |
+| Add Market Comparison section to Streamlit | 4 | 2–3 hours |
+
+**Success criteria:** Streamlit shows our model vs. market probability for all historical matches with divergence highlighted.
+
+---
+
+### Milestone 5 — Tournament Context (4–5 weeks, overlapping M3/M4)
+
+**Goal:** Rest, rotation, altitude all automated.
+
+| Task | Module | Effort |
+|---|---|---|
+| Implement rest days calculation | 5 | 2 hours |
+| Implement rotation detector | 5 | 1 day |
+| Add altitude data for WC venues | 5 | 1 hour |
+| Integrate context factors into pipeline | 5 | half day |
 
 **Success criteria:** Rotation-detected matches show lower predicted xG for rotating team.
 
 ---
 
-### Milestone 5 — Tactical Matchup Engine (6–8 weeks)
+### Milestone 6 — Tactical Matchup Engine (6–8 weeks)
 
-**Goal:** Compute PPDA and possession metrics; fit press/block interaction coefficients.
+**Goal:** PPDA and possession metrics in; press/block matrix fit.
 
 | Task | Module | Effort |
 |---|---|---|
-| Scrape FBref for PPDA, possession, set piece % (last 10 WC teams) | 5 | 1 day |
-| Fit interaction matrix from 3 years of international data | 5 | 2 days |
-| Implement `apply_tactical_factor()` | 5 | 1 day |
-| Validate: known high-press vs. deep-block outcomes | 5 | half day |
+| Scrape FBref tactical data | 6 | 1 day |
+| Classify teams into press/block tiers | 6 | half day |
+| Fit press/block interaction matrix | 6 | 2 days |
+| Implement `apply_tactical_factor()` | 6 | 1 day |
+| Validate on stylistically extreme matchups | 6 | 1 day |
 
-**Success criteria:** Tactical module improves Brier score on stylistically extreme matchups.
+**Success criteria:** Tactical module improves Brier on stylistically extreme matches.
 
 ---
 
-### Milestone 6 — World Cup Integration (2 weeks before tournament)
-
-**Goal:** Full pipeline operational on current-tournament data.
+### Milestone 7 — World Cup Integration (2 weeks before tournament)
 
 | Task | Effort |
 |---|---|
-| Source current ELO ratings (tournament eve) | 1 hour |
-| Source each team's last 10 matches before the tournament | 3 hours |
-| Source official 26-man squads (after announcement deadline) | 1 hour |
-| Source FBref tactical profiles (6 months preceding tournament) | 2 hours |
-| Generate all CSV inputs | 1 hour |
-| Regenerate `team_strength_params.csv` via MLE fit | 30 min |
-| Run full valid backtest on WC 2022 as final validation | 1 hour |
+| Source all inputs for current tournament | 1 day |
+| Run full pipeline from fetch → predict | 1 hour |
+| Confirm valid backtest shows competitive Brier | 30 min |
 | Deploy Streamlit app | 30 min |
-
-**Success criteria:** Full pipeline producing predictions within 24 hours of each WC match. Brier score on WC 2022 (held-out, real data) < 0.52.
 
 ---
 
 ## Data Quality Standards
 
-For each source to be considered research-grade, it must satisfy:
+For each data source to qualify as research-grade:
 
 | Criterion | Requirement |
 |---|---|
 | **Temporal validity** | All inputs timestamped before the match they inform |
 | **Source traceability** | Every value traceable to a specific external record |
-| **Reproducibility** | Given the same source snapshot, the pipeline produces identical results |
-| **No look-ahead bias** | No data from after the match date used in pre-match features |
-| **Completeness** | < 5% of rows with missing values; gaps filled by documented fallback |
-
-The current V6 system satisfies temporal validity and reproducibility by design. Source traceability and no look-ahead bias are the properties that placeholder data violates.
+| **Reproducibility** | Same source snapshot → identical pipeline output |
+| **No look-ahead bias** | No post-match data used in pre-match features |
+| **Completeness** | < 5% missing values; gaps filled by documented fallback |
 
 ---
 
 ## Brier Score Targets
 
-These are plausible targets based on published academic benchmarks for international football. Actual results will depend on data quality and the WC sample.
-
-| System | Expected Brier Score | Notes |
+| System | Expected Brier | Notes |
 |---|---|---|
-| Uniform prediction (33.3% each outcome) | 0.667 | Theoretical baseline |
-| Current Poisson (illustrative data) | 0.541 | Illustrative only |
-| Poisson with real pre-match stats | ~0.52–0.54 | Milestone 1 target |
-| + Opponent strength adjustment (MLE) | ~0.49–0.52 | Milestone 2 target |
-| + Squad intelligence | ~0.48–0.51 | Milestone 3 target |
-| + Context factors | ~0.47–0.50 | Milestone 4 target |
-| + Tactical matchup | ~0.46–0.49 | Milestone 5 target |
-| Academic SOTA (international football) | ~0.43–0.47 | Published benchmarks |
-
-Each improvement is additive but with diminishing returns. The biggest single jump is expected at Milestone 2 (opponent strength adjustment).
+| Uniform (33.3% each) | 0.667 | Theoretical lower bound |
+| Current (illustrative data) | 0.541 | Illustrative only — not meaningful |
+| M1: Real pre-match stats | ~0.52–0.54 | First genuine measurement |
+| M2: + Opponent strength (MLE) | ~0.49–0.52 | **Largest single improvement** |
+| M3: + Player impact engine | ~0.47–0.50 | Player form and availability |
+| M4: Market intelligence | — | Calibration signal, no direct Brier gain |
+| M5: + Tournament context | ~0.46–0.49 | Situational adjustments |
+| M6: + Tactical matchup | ~0.45–0.48 | Style interactions |
+| Academic SOTA (international) | ~0.43–0.47 | Published research benchmarks |
 
 ---
 
@@ -540,26 +819,33 @@ Each improvement is additive but with diminishing returns. The biggest single ju
 ```
 worldcup-predictor/
 ├── scripts/
-│   ├── fetch_pre_match_stats.py     # Populates pre_match_team_stats.csv
-│   ├── fetch_elo_history.py         # Downloads eloratings.net snapshots
-│   ├── fetch_squad_profiles.py      # Scrapes Transfermarkt squad data
-│   └── fit_team_strength_params.py  # MLE fit → team_strength_params.csv
+│   ├── fetch_pre_match_stats.py          # Module 1: populates pre_match_team_stats.csv
+│   ├── fetch_elo_history.py              # Module 1: downloads ELO snapshots
+│   ├── fetch_squad_profiles.py           # Module 3: scrapes player data
+│   ├── fetch_match_odds.py               # Module 4: downloads odds data
+│   ├── fetch_tactical_profiles.py        # Module 6: scrapes FBref tactical data
+│   └── fit_team_strength_params.py       # Module 2: MLE fit → team_strength_params.csv
 ├── data/
-│   ├── elo_history.csv              # ELO snapshots (date, team, rating)
-│   ├── match_results.csv            # Full international results history
-│   ├── team_strength_params.csv     # MLE attack/defense parameters
-│   ├── squad_profiles.csv           # Player availability per tournament
-│   ├── match_context.csv            # Rest days, rotation flags, altitude
-│   └── tactical_profiles.csv        # PPDA, possession, formation data
+│   ├── elo_history.csv                   # ELO snapshots (date, team, rating)
+│   ├── match_results.csv                 # Full international results history
+│   ├── team_strength_params.csv          # MLE α/β parameters per team
+│   ├── player_profiles.csv               # Player-level impact metrics
+│   ├── match_availability.csv            # Per-match player availability
+│   ├── xi_strength_scores.csv            # Computed XI strength per match
+│   ├── match_odds.csv                    # Opening/closing odds + handicap
+│   ├── model_vs_market.csv               # Our model vs. market comparison
+│   ├── match_context.csv                 # Rest days, rotation, altitude flags
+│   └── tactical_profiles.csv             # PPDA, possession, formation data
 └── src/
     ├── data/
-    │   └── pre_match_loader.py      # Already built — extend for new columns
+    │   └── pre_match_loader.py           # Already built — extend for new columns
     └── models/
-        ├── mle_fitter.py            # Dixon-Coles/Maher MLE parameter estimation
-        ├── strength_adjusted_xg.py  # Module 2 xG adjuster
-        ├── squad_adjuster.py        # Module 3 xG adjuster
-        ├── context_adjuster.py      # Module 4 xG adjuster
-        └── tactical_adjuster.py    # Module 5 xG adjuster
+        ├── mle_fitter.py                 # Module 2: Dixon-Coles/Maher MLE
+        ├── strength_adjusted_xg.py       # Module 2: xG adjuster
+        ├── squad_adjuster.py             # Module 3: XI strength adjuster
+        ├── market_intelligence.py        # Module 4: odds comparison + divergence
+        ├── context_adjuster.py           # Module 5: rest/rotation/altitude
+        └── tactical_adjuster.py          # Module 6: press/block matrix
 ```
 
-All existing model files (`poisson.py`, `dixon_coles.py`, `valid_runner.py`, `metrics.py`) are unchanged. Phase 2 adds inputs and adjusters; the core prediction math is already correct.
+All existing model files (`poisson.py`, `dixon_coles.py`, `valid_runner.py`, `metrics.py`, `rho_tuning.py`) are **unchanged**. Phase 2 adds data pipelines and xG adjusters; the core prediction math is already correct.
