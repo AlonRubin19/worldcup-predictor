@@ -1,0 +1,31 @@
+# WARNING: PLACEHOLDER DATA — NOT SOURCED FROM REAL PRE-MATCH STATISTICS
+# This file is structurally valid but values are illustrative only.
+# See docs/valid_backtest_status.md for sourcing requirements.
+# goals_for/against columns = avg goals per game over the last 10 matches
+# points_per_game columns = avg points per game (win=3, draw=1) over last 10
+match_id,date,team_a,team_b,team_a_elo_pre,team_b_elo_pre,team_a_goals_for_last_10,team_a_goals_against_last_10,team_b_goals_for_last_10,team_b_goals_against_last_10,team_a_points_per_game_last_10,team_b_points_per_game_last_10,team_a_matches_available,team_b_matches_available,team_a_goals,team_b_goals
+1,2022-11-20,Ecuador,Qatar,1755,1634,1.40,0.90,0.80,1.60,2.10,0.90,10,10,2,0
+2,2022-11-21,England,Iran,1978,1714,1.70,0.80,1.10,1.40,2.30,1.40,10,10,6,2
+3,2022-11-21,Senegal,Netherlands,1835,1968,1.20,0.90,1.80,0.90,1.90,2.40,10,10,0,2
+4,2022-11-22,USA,Wales,1815,1798,1.30,1.00,1.20,1.10,1.80,1.70,10,10,1,1
+5,2022-11-22,Argentina,Saudi Arabia,2064,1693,1.80,0.70,1.00,1.30,2.60,1.50,10,10,1,2
+6,2022-11-22,Denmark,Tunisia,1904,1675,1.40,0.80,0.90,1.20,2.10,1.30,10,10,0,0
+7,2022-11-23,Mexico,Poland,1836,1832,1.30,0.90,1.10,1.00,1.90,1.80,10,10,0,0
+8,2022-11-23,France,Australia,2015,1726,2.00,0.70,1.10,1.40,2.50,1.50,10,10,4,1
+9,2022-11-24,Morocco,Croatia,1864,1933,1.10,0.90,1.30,0.80,1.80,2.10,10,10,0,0
+10,2022-11-24,Germany,Japan,1979,1815,1.90,0.90,1.30,0.90,2.40,1.90,10,10,1,2
+11,2022-11-24,Spain,Costa Rica,1969,1706,2.10,0.60,0.90,1.50,2.50,1.40,10,10,7,0
+12,2022-11-25,Belgium,Canada,1934,1755,1.60,0.80,1.20,1.10,2.20,1.80,10,10,1,0
+13,2022-11-25,Switzerland,Cameroon,1864,1694,1.40,0.90,1.00,1.40,2.00,1.40,10,10,1,0
+14,2022-11-26,Uruguay,South Korea,1894,1795,1.20,0.80,1.10,1.10,1.80,1.70,10,10,0,0
+15,2022-11-26,Portugal,Ghana,2004,1675,1.80,0.80,1.10,1.50,2.40,1.50,10,10,3,2
+16,2022-11-27,Brazil,Serbia,2044,1846,2.10,0.70,1.20,1.10,2.60,1.90,10,10,2,0
+17,2022-11-28,France,Denmark,2015,1898,2.00,0.70,1.40,0.80,2.50,2.10,10,10,2,1
+18,2022-11-28,Argentina,Mexico,2064,1836,1.80,0.70,1.30,1.00,2.60,1.90,10,10,2,0
+19,2022-11-29,Japan,Costa Rica,1815,1706,1.30,0.90,0.90,1.50,1.90,1.40,10,4,0,1
+20,2022-11-29,Germany,Spain,1979,1969,1.90,0.90,2.10,0.60,2.40,2.50,10,10,1,1
+21,2022-11-30,Belgium,Morocco,1934,1864,1.60,0.80,1.10,0.90,2.20,1.80,10,10,0,2
+22,2022-11-30,Croatia,Canada,1933,1755,1.30,0.80,1.20,1.10,2.10,1.80,10,10,4,1
+23,2022-12-01,Brazil,Switzerland,2044,1864,2.10,0.70,1.40,0.90,2.60,2.00,10,4,1,0
+24,2022-12-01,Portugal,Uruguay,2004,1894,1.80,0.80,1.20,0.80,2.40,1.80,10,10,2,0
+25,2022-12-02,South Korea,Ghana,1795,1675,1.10,1.10,1.10,1.50,1.70,1.50,4,10,2,3
