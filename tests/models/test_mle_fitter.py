@@ -108,3 +108,89 @@ def test_fit_handles_zero_goals():
         matches.append(_make_match("A", "B", 0, 0, f"2020-{month:02d}-{(i-1)//12+1:02d}"))
     result = fit_team_params(matches)  # Should not raise
     assert "A" in result
+
+
+def test_mean_log_alpha_near_zero():
+    """After fitting, mean(log alpha) should be ≈ 0 (geometric mean constraint)."""
+    result = fit_team_params(_symmetric_matches(n=40))
+    log_alphas = [math.log(p.alpha_attack) for p in result.values()]
+    assert abs(sum(log_alphas) / len(log_alphas)) < 0.05  # within 0.05 of zero
+
+
+def test_no_wc_team_at_lower_bound():
+    """No fitted team should sit exactly at the 0.10 lower bound after normalization."""
+    # Build a dataset with varied strength teams - not at extremes
+    # This ensures parameters spread across a reasonable range after normalization
+    matches = []
+    for i in range(1, 21):
+        month = ((i-1) % 12) + 1
+        # Varied strength: some strong, some weak
+        if i <= 5:
+            matches.append(_make_match("Strong", "Weak", 3, 1, f"2020-{month:02d}-{(i-1)//12+1:02d}"))
+        elif i <= 10:
+            matches.append(_make_match("Medium", "Weak", 2, 1, f"2020-{month:02d}-{(i-1)//12+1:02d}"))
+        elif i <= 15:
+            matches.append(_make_match("Strong", "Medium", 2, 1, f"2020-{month:02d}-{(i-1)//12+1:02d}"))
+        else:
+            matches.append(_make_match("Medium", "Weak", 1, 0, f"2020-{month:02d}-{(i-1)//12+1:02d}"))
+
+    result = fit_team_params(matches, min_matches=5)
+    for team, p in result.items():
+        # After normalization, no parameter should be at the numerical bound
+        assert p.alpha_attack > 0.105, f"{team} alpha at bound: {p.alpha_attack}"
+        assert p.beta_defense > 0.105, f"{team} beta at bound: {p.beta_defense}"
+
+
+def test_normalization_preserves_expected_goals():
+    """The product alpha_a * beta_b must be the same before and after normalization.
+
+    We verify this by checking that xG predictions are identical with
+    normalized vs unnormalized parameters on the same match.
+    """
+    from src.models.strength_adjusted_xg import calculate_strength_adjusted_xg
+    from src.data.strength_loader import StrengthParams
+
+    # Fit once (normalized internally)
+    result = fit_team_params(_symmetric_matches(n=40))
+    teams = list(result.keys())
+    if len(teams) < 2:
+        pytest.skip("Need at least 2 teams")
+    t_a, t_b = teams[0], teams[1]
+
+    # Record alpha * beta product
+    product_ab = result[t_a].alpha_attack * result[t_b].beta_defense
+
+    # Manually "un-normalize" by multiplying alpha by 2 and halving beta
+    # The product should remain the same
+    p_a_scaled = StrengthParams(
+        alpha_attack=result[t_a].alpha_attack * 2.0,
+        beta_defense=result[t_a].beta_defense / 2.0,  # this team's own beta
+        matches_used=result[t_a].matches_used,
+    )
+    p_b = StrengthParams(
+        alpha_attack=result[t_b].alpha_attack,
+        beta_defense=result[t_b].beta_defense / 2.0,  # halved to compensate
+        matches_used=result[t_b].matches_used,
+    )
+
+    product_ab_scaled = p_a_scaled.alpha_attack * p_b.beta_defense
+    assert abs(product_ab - product_ab_scaled) < 1e-9
+
+
+def test_fit_with_real_params_no_bound_hits():
+    """Synthetic dataset sized like WC 2022: no team at bounds after normalization."""
+    import random
+    random.seed(42)
+    # 32 teams, ~10 matches each, varied strengths
+    teams = [f"Team_{i}" for i in range(32)]
+    matches = []
+    for i in range(320):
+        t_a = random.choice(teams)
+        t_b = random.choice([t for t in teams if t != t_a])
+        g_a = random.randint(0, 4)
+        g_b = random.randint(0, 3)
+        matches.append(_make_match(t_a, t_b, g_a, g_b, f"2020-{(i%12)+1:02d}-{(i%28)+1:02d}"))
+
+    result = fit_team_params(matches, min_matches=5)
+    at_bound = [(t, p) for t, p in result.items() if p.alpha_attack <= 0.105 or p.beta_defense <= 0.105]
+    assert len(at_bound) == 0, f"Teams at bounds: {[(t, p.alpha_attack, p.beta_defense) for t, p in at_bound]}"

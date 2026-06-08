@@ -143,6 +143,18 @@ def fit_team_params(
     alpha_vals = final_params[:n]
     beta_vals = final_params[n:]
 
+    # ── Identifiability normalization ─────────────────────────────────────
+    # The Poisson model λ = α_a * β_b has a degree of freedom: multiplying
+    # all α by C and dividing all β by C leaves every λ unchanged.
+    # We fix this by normalizing to geometric mean(α) = 1, i.e. mean(log α) = 0.
+    # This is equivalent to dividing every α by the geometric mean and
+    # multiplying every β by the same factor — all products α_a * β_b are
+    # preserved exactly.
+    log_alpha_mean = float(np.mean(np.log(alpha_vals)))
+    scale = math.exp(log_alpha_mean)
+    alpha_vals = alpha_vals / scale    # normalized: mean(log α) = 0
+    beta_vals  = beta_vals  * scale    # compensated: every α*β unchanged
+
     # Build per-team output
     output = {}
     for i, team in enumerate(team_list):
