@@ -72,3 +72,38 @@ def test_new_team_starts_at_1600():
     history = compute_elo_history(matches)
     row = [r for r in history if r["team"] == "NewTeam"][0]
     assert row["elo_pre"] == 1600.0
+
+
+from scripts.build_database import compute_rolling_stats
+
+
+def test_rolling_stats_uses_only_prior_matches():
+    """Stats for match N must not include match N itself."""
+    prior = [
+        {"date": "2020-01-01", "goals_for": 3, "goals_against": 1, "points": 3},
+        {"date": "2020-02-01", "goals_for": 1, "goals_against": 1, "points": 1},
+    ]
+    stats = compute_rolling_stats(prior, window=10)
+    assert stats["goals_for_last_10"] == 2.0       # (3+1)/2
+    assert stats["goals_against_last_10"] == 1.0   # (1+1)/2
+    assert stats["points_per_game_last_10"] == 2.0  # (3+1)/2
+    assert stats["matches_available"] == 2
+
+
+def test_rolling_stats_empty_prior():
+    """Team with no prior matches returns baseline values."""
+    stats = compute_rolling_stats([], window=10)
+    assert stats["matches_available"] == 0
+    assert stats["goals_for_last_10"] == 1.35   # fallback = BASE_XG
+    assert stats["goals_against_last_10"] == 1.35
+    assert stats["points_per_game_last_10"] == 1.5  # fallback = mid-range
+
+
+def test_rolling_stats_window_capped_at_10():
+    """Only use the 10 most recent prior matches."""
+    prior = [
+        {"date": f"2020-{i:02d}-01", "goals_for": 2, "goals_against": 0, "points": 3}
+        for i in range(1, 15)  # 14 matches
+    ]
+    stats = compute_rolling_stats(prior, window=10)
+    assert stats["matches_available"] == 10
