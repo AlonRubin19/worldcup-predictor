@@ -1,5 +1,5 @@
 import pytest
-from src.models.poisson import predict, PredictionResult
+from src.models.poisson import predict, PredictionResult, build_score_matrix
 
 
 def test_returns_prediction_result():
@@ -63,3 +63,19 @@ def test_team_names_stored_in_result():
     result = predict("France", "Brazil", 1.2, 1.5)
     assert result.team_a == "France"
     assert result.team_b == "Brazil"
+
+
+def test_build_score_matrix_shape_and_sum():
+    matrix = build_score_matrix(1.5, 1.2)
+    assert matrix.ndim == 2
+    assert matrix.shape[0] == matrix.shape[1]
+    # Matrix should sum to approximately 1 (small gap due to truncation)
+    assert abs(matrix.sum() - 1.0) < 1e-4
+
+
+def test_build_score_matrix_cell_values():
+    from scipy.stats import poisson as _poisson
+    matrix = build_score_matrix(1.5, 1.2)
+    # Cell [2][1] should equal poisson.pmf(2, 1.5) * poisson.pmf(1, 1.2)
+    expected = _poisson.pmf(2, 1.5) * _poisson.pmf(1, 1.2)
+    assert abs(matrix[2, 1] - expected) < 1e-12
