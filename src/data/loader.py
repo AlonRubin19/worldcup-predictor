@@ -33,3 +33,35 @@ def load_teams(csv_path: Path | None = None) -> list[str]:
         raise ValueError("teams.csv contains no team entries")
 
     return sorted(teams)
+
+
+_RATINGS_CSV = Path(__file__).parent.parent.parent / "data" / "team_ratings.csv"
+
+_REQUIRED_RATING_COLUMNS = {
+    "team", "elo", "attack_rating", "defense_rating", "form_rating", "squad_rating"
+}
+
+
+def load_team_ratings(ratings_path: Path | None = None) -> dict[str, dict]:
+    """Load team ratings from the local CSV.
+
+    Returns a dict keyed by team name, each value a dict of rating fields:
+        {"elo": 2070, "attack_rating": 1.15, "defense_rating": 0.88,
+         "form_rating": 1.05, "squad_rating": 1.10}
+
+    Raises FileNotFoundError if the ratings CSV is missing.
+    Raises ValueError if required columns are missing.
+    """
+    path = ratings_path if ratings_path is not None else _RATINGS_CSV
+
+    if not path.exists():
+        raise FileNotFoundError(f"Ratings data file not found: {path}")
+
+    df = pd.read_csv(path)
+
+    missing = _REQUIRED_RATING_COLUMNS - set(df.columns)
+    if missing:
+        raise ValueError(f"team_ratings.csv missing columns: {sorted(missing)}")
+
+    df["team"] = df["team"].str.strip()
+    return df.set_index("team")[list(_REQUIRED_RATING_COLUMNS - {"team"})].to_dict("index")

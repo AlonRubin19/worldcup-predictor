@@ -47,3 +47,30 @@ def test_empty_file_raises(tmp_path):
     f.write_text("team\n")
     with pytest.raises(ValueError, match="no team entries"):
         load_teams(f)
+
+
+from src.data.loader import load_team_ratings
+
+
+def test_load_team_ratings_returns_dict():
+    ratings = load_team_ratings()
+    assert isinstance(ratings, dict)
+
+
+def test_load_team_ratings_contains_expected_keys():
+    ratings = load_team_ratings()
+    assert "Argentina" in ratings
+    required_keys = {"elo", "attack_rating", "defense_rating", "form_rating", "squad_rating"}
+    assert required_keys.issubset(ratings["Argentina"].keys())
+
+
+def test_load_team_ratings_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_team_ratings(tmp_path / "missing.csv")
+
+
+def test_load_team_ratings_missing_column_raises(tmp_path):
+    f = tmp_path / "ratings.csv"
+    f.write_text("team,elo\nArgentina,2070\n")
+    with pytest.raises(ValueError, match="missing columns"):
+        load_team_ratings(f)
