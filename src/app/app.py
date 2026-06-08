@@ -66,7 +66,11 @@ with col4:
     )
 
 # ── Run prediction ─────────────────────────────────────────────────────────────
-result = predict(team_a, team_b, xg_a, xg_b)
+try:
+    result = predict(team_a, team_b, xg_a, xg_b)
+except ValueError as e:
+    st.error(f"Prediction failed: {e}")
+    st.stop()
 
 # ── Results display ────────────────────────────────────────────────────────────
 st.markdown("---")
