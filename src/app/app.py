@@ -9,6 +9,7 @@ import pandas as pd
 from src.data.loader import load_teams, load_team_ratings
 from src.models.xg_calculator import calculate_xg, BASE_XG
 from src.models.poisson import predict
+from src.models.dixon_coles import predict_dixon_coles
 from src.backtesting.runner import run_backtest
 from src.backtesting.metrics import compute_metrics
 
@@ -45,6 +46,14 @@ with tab_predictor:
     except (FileNotFoundError, ValueError) as e:
         st.error(f"Could not load team ratings: {e}")
         st.stop()
+
+    # ── Model selector ─────────────────────────────────────────────────────────
+    model_choice = st.radio(
+        "Prediction Model",
+        ["Poisson", "Dixon-Coles"],
+        horizontal=True,
+        help="Dixon-Coles corrects low-score probabilities (draws, 1-0, 0-1) vs pure Poisson.",
+    )
 
     # ── Team selection ─────────────────────────────────────────────────────────
     col1, col2 = st.columns(2)
@@ -105,7 +114,10 @@ with tab_predictor:
 
     # ── Prediction ────────────────────────────────────────────────────────────
     try:
-        result = predict(team_a, team_b, final_xg_a, final_xg_b)
+        if model_choice == "Dixon-Coles":
+            result = predict_dixon_coles(team_a, team_b, final_xg_a, final_xg_b)
+        else:
+            result = predict(team_a, team_b, final_xg_a, final_xg_b)
     except ValueError as e:
         st.error(f"Prediction failed: {e}")
         st.stop()
@@ -136,21 +148,23 @@ with tab_predictor:
 with tab_backtest:
     st.markdown("Model accuracy validated against historical international match results.")
 
-    # Use already-loaded ratings; don't call st.stop() here — that would halt
-    # the entire app including the predictor tab.
-    bt_results = None
-    bt_metrics = None
+    bt_results_po = None
+    bt_results_dc = None
+    bt_metrics_po = None
+    bt_metrics_dc = None
     try:
-        bt_results = run_backtest(ratings=all_ratings)
-        bt_metrics = compute_metrics(bt_results)
+        bt_results_po = run_backtest(ratings=all_ratings, model_type="poisson")
+        bt_metrics_po = compute_metrics(bt_results_po)
+        bt_results_dc = run_backtest(ratings=all_ratings, model_type="dixon_coles")
+        bt_metrics_dc = compute_metrics(bt_results_dc)
     except Exception as e:
         st.error(f"Backtesting failed: {e}")
 
-    if bt_metrics is not None:
-        # ── Summary metrics ───────────────────────────────────────────────────
-        st.subheader("Model Performance")
+    if bt_metrics_po is not None and bt_metrics_dc is not None:
+        # ── Model comparison ──────────────────────────────────────────────────
+        st.subheader("Model Comparison")
 
-        metrics_data = {
+        comparison_data = {
             "Metric": [
                 "Total Matches Tested",
                 "1X2 Accuracy",
@@ -160,20 +174,29 @@ with tab_backtest:
                 "Brier Score (lower = better)",
                 "Avg Probability of Actual Result",
             ],
-            "Value": [
-                str(bt_metrics.total_matches),
-                f"{bt_metrics.accuracy_1x2:.1%}",
-                f"{bt_metrics.exact_score_accuracy:.1%}",
-                f"{bt_metrics.top_3_hit_rate:.1%}",
-                f"{bt_metrics.top_5_hit_rate:.1%}",
-                f"{bt_metrics.brier_score:.4f}",
-                f"{bt_metrics.avg_prob_actual_result:.1%}",
+            "Poisson": [
+                str(bt_metrics_po.total_matches),
+                f"{bt_metrics_po.accuracy_1x2:.1%}",
+                f"{bt_metrics_po.exact_score_accuracy:.1%}",
+                f"{bt_metrics_po.top_3_hit_rate:.1%}",
+                f"{bt_metrics_po.top_5_hit_rate:.1%}",
+                f"{bt_metrics_po.brier_score:.4f}",
+                f"{bt_metrics_po.avg_prob_actual_result:.1%}",
+            ],
+            "Dixon-Coles": [
+                str(bt_metrics_dc.total_matches),
+                f"{bt_metrics_dc.accuracy_1x2:.1%}",
+                f"{bt_metrics_dc.exact_score_accuracy:.1%}",
+                f"{bt_metrics_dc.top_3_hit_rate:.1%}",
+                f"{bt_metrics_dc.top_5_hit_rate:.1%}",
+                f"{bt_metrics_dc.brier_score:.4f}",
+                f"{bt_metrics_dc.avg_prob_actual_result:.1%}",
             ],
         }
-        st.table(pd.DataFrame(metrics_data))
+        st.table(pd.DataFrame(comparison_data))
 
-        # ── Per-match results ─────────────────────────────────────────────────
-        st.subheader("Match-Level Results")
+        # ── Per-match results (Poisson as reference) ──────────────────────────
+        st.subheader("Match-Level Results (Poisson)")
 
         outcome_labels = {
             "team_a_win": "Team A Win",
@@ -182,7 +205,7 @@ with tab_backtest:
         }
 
         rows = []
-        for r in bt_results:
+        for r in bt_results_po:
             rows.append({
                 "Date": r.date,
                 "Match": f"{r.team_a} vs {r.team_b}",
