@@ -12,6 +12,10 @@ from src.models.poisson import predict
 from src.backtesting.runner import run_backtest
 from src.backtesting.metrics import compute_metrics
 
+# Fallback ratings for teams missing from team_ratings.csv.
+_AVG_RATINGS = {"elo": 1800, "attack_rating": 1.0, "defense_rating": 1.0,
+                "form_rating": 1.0, "squad_rating": 1.0}
+
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="World Cup Predictor",
@@ -61,11 +65,9 @@ with tab_predictor:
     if ratings_b is None:
         st.warning(f"No ratings found for {team_b} — using baseline xG ({BASE_XG}).")
 
-    _AVG = {"elo": 1800, "attack_rating": 1.0, "defense_rating": 1.0,
-            "form_rating": 1.0, "squad_rating": 1.0}
     auto_xg_a, auto_xg_b = calculate_xg(
-        ratings_a if ratings_a is not None else _AVG,
-        ratings_b if ratings_b is not None else _AVG,
+        ratings_a if ratings_a is not None else _AVG_RATINGS,
+        ratings_b if ratings_b is not None else _AVG_RATINGS,
     )
 
     # ── xG inputs ─────────────────────────────────────────────────────────────
@@ -134,59 +136,62 @@ with tab_predictor:
 with tab_backtest:
     st.markdown("Model accuracy validated against historical international match results.")
 
+    # Use already-loaded ratings; don't call st.stop() here — that would halt
+    # the entire app including the predictor tab.
+    bt_results = None
+    bt_metrics = None
     try:
-        bt_ratings = load_team_ratings()
-        bt_results = run_backtest(ratings=bt_ratings)
+        bt_results = run_backtest(ratings=all_ratings)
         bt_metrics = compute_metrics(bt_results)
-    except (FileNotFoundError, ValueError) as e:
+    except Exception as e:
         st.error(f"Backtesting failed: {e}")
-        st.stop()
 
-    # ── Summary metrics ───────────────────────────────────────────────────────
-    st.subheader("Model Performance")
+    if bt_metrics is not None:
+        # ── Summary metrics ───────────────────────────────────────────────────
+        st.subheader("Model Performance")
 
-    metrics_data = {
-        "Metric": [
-            "Total Matches Tested",
-            "1X2 Accuracy",
-            "Exact Score Accuracy",
-            "Top 3 Scoreline Hit Rate",
-            "Top 5 Scoreline Hit Rate",
-            "Brier Score (lower = better)",
-            "Avg Probability of Actual Result",
-        ],
-        "Value": [
-            str(bt_metrics.total_matches),
-            f"{bt_metrics.accuracy_1x2:.1%}",
-            f"{bt_metrics.exact_score_accuracy:.1%}",
-            f"{bt_metrics.top_3_hit_rate:.1%}",
-            f"{bt_metrics.top_5_hit_rate:.1%}",
-            f"{bt_metrics.brier_score:.4f}",
-            f"{bt_metrics.avg_prob_actual_result:.1%}",
-        ],
-    }
-    st.table(pd.DataFrame(metrics_data))
+        metrics_data = {
+            "Metric": [
+                "Total Matches Tested",
+                "1X2 Accuracy",
+                "Exact Score Accuracy",
+                "Top 3 Scoreline Hit Rate",
+                "Top 5 Scoreline Hit Rate",
+                "Brier Score (lower = better)",
+                "Avg Probability of Actual Result",
+            ],
+            "Value": [
+                str(bt_metrics.total_matches),
+                f"{bt_metrics.accuracy_1x2:.1%}",
+                f"{bt_metrics.exact_score_accuracy:.1%}",
+                f"{bt_metrics.top_3_hit_rate:.1%}",
+                f"{bt_metrics.top_5_hit_rate:.1%}",
+                f"{bt_metrics.brier_score:.4f}",
+                f"{bt_metrics.avg_prob_actual_result:.1%}",
+            ],
+        }
+        st.table(pd.DataFrame(metrics_data))
 
-    # ── Per-match results ─────────────────────────────────────────────────────
-    st.subheader("Match-Level Results")
+        # ── Per-match results ─────────────────────────────────────────────────
+        st.subheader("Match-Level Results")
 
-    outcome_labels = {
-        "team_a_win": "Home Win",
-        "draw": "Draw",
-        "team_b_win": "Away Win",
-    }
+        outcome_labels = {
+            "team_a_win": "Team A Win",
+            "draw": "Draw",
+            "team_b_win": "Team B Win",
+        }
 
-    rows = []
-    for r in bt_results:
-        rows.append({
-            "Date": r.date,
-            "Match": f"{r.team_a} vs {r.team_b}",
-            "Actual Score": f"{r.actual_goals_a}-{r.actual_goals_b}",
-            "Predicted": outcome_labels[r.predicted_outcome],
-            "Actual": outcome_labels[r.actual_outcome],
-            "Correct": "✓" if r.predicted_outcome == r.actual_outcome else "✗",
-            "In Top 5": "✓" if r.in_top_5 else "✗",
-            "P(actual)": f"{r.prob_of_actual_result:.1%}",
-        })
+        rows = []
+        for r in bt_results:
+            rows.append({
+                "Date": r.date,
+                "Match": f"{r.team_a} vs {r.team_b}",
+                "Actual Score": f"{r.actual_goals_a}-{r.actual_goals_b}",
+                "Predicted": outcome_labels[r.predicted_outcome],
+                "Actual": outcome_labels[r.actual_outcome],
+                "Correct": "✓" if r.predicted_outcome == r.actual_outcome else "✗",
+                "In Top 5": "✓" if r.in_top_5 else "✗",
+                "P(actual)": f"{r.prob_of_actual_result:.1%}",
+            })
 
-    st.dataframe(pd.DataFrame(rows), use_container_width=True)
+        st.dataframe(pd.DataFrame(rows), use_container_width=True)
