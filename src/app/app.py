@@ -12,6 +12,7 @@ from src.models.poisson import predict
 from src.models.dixon_coles import predict_dixon_coles
 from src.backtesting.runner import run_backtest
 from src.backtesting.metrics import compute_metrics
+from src.backtesting.rho_tuning import tune_rho, select_best_rho
 
 # Fallback ratings for teams missing from team_ratings.csv.
 _AVG_RATINGS = {"elo": 1800, "attack_rating": 1.0, "defense_rating": 1.0,
@@ -152,11 +153,15 @@ with tab_backtest:
     bt_results_dc = None
     bt_metrics_po = None
     bt_metrics_dc = None
+    rho_tuning_results = None
+    best_rho_result = None
     try:
         bt_results_po = run_backtest(ratings=all_ratings, model_type="poisson")
         bt_metrics_po = compute_metrics(bt_results_po)
         bt_results_dc = run_backtest(ratings=all_ratings, model_type="dixon_coles")
         bt_metrics_dc = compute_metrics(bt_results_dc)
+        rho_tuning_results = tune_rho(all_ratings)
+        best_rho_result = select_best_rho(rho_tuning_results)
     except Exception as e:
         st.error(f"Backtesting failed: {e}")
 
@@ -218,3 +223,41 @@ with tab_backtest:
             })
 
         st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+        # ── Rho Tuning ────────────────────────────────────────────────────────
+        if rho_tuning_results is not None and best_rho_result is not None:
+            st.markdown("---")
+            st.subheader("Rho Tuning — Dixon-Coles Parameter Search")
+
+            rho_rows = []
+            for r in rho_tuning_results:
+                rho_rows.append({
+                    "rho": f"{r.rho:.2f}",
+                    "1X2 Acc": f"{r.accuracy_1x2:.1%}",
+                    "Exact": f"{r.exact_score_accuracy:.1%}",
+                    "Top 3": f"{r.top_3_hit_rate:.1%}",
+                    "Top 5": f"{r.top_5_hit_rate:.1%}",
+                    "Brier": f"{r.brier_score:.4f}",
+                    "Avg P": f"{r.avg_prob_actual_result:.1%}",
+                })
+            st.table(pd.DataFrame(rho_rows))
+
+            st.caption(f"**Best rho:** {best_rho_result.rho:.2f} "
+                       f"(Brier: {best_rho_result.brier_score:.4f}, "
+                       f"Top 3: {best_rho_result.top_3_hit_rate:.1%})")
+
+            # Recommend DC with best rho only if it beats Poisson by meaningful margin.
+            poisson_brier = bt_metrics_po.brier_score
+            if best_rho_result.brier_score < poisson_brier - 0.001:
+                st.success(
+                    f"Recommendation: **Dixon-Coles (rho={best_rho_result.rho:.2f})** — "
+                    f"Brier {best_rho_result.brier_score:.4f} vs Poisson {poisson_brier:.4f} "
+                    f"({poisson_brier - best_rho_result.brier_score:.4f} improvement)"
+                )
+            else:
+                st.info(
+                    f"Recommendation: **Poisson (default)** — "
+                    f"Dixon-Coles best rho={best_rho_result.rho:.2f} does not improve "
+                    f"Brier score by more than 0.001 "
+                    f"(DC: {best_rho_result.brier_score:.4f}, Poisson: {poisson_brier:.4f})"
+                )
