@@ -136,7 +136,7 @@ def fit_team_params(
         args=(team_list, filtered),
         method="L-BFGS-B",
         bounds=bounds,
-        options={"maxiter": 1000, "ftol": 1e-9},
+        options={"maxiter": 1000, "ftol": 1e-6},
     )
 
     final_params = result.x
