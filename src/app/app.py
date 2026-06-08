@@ -56,21 +56,24 @@ if ratings_a is None:
 if ratings_b is None:
     st.warning(f"No ratings found for {team_b} — using baseline xG ({BASE_XG}).")
 
-if ratings_a is not None and ratings_b is not None:
-    auto_xg_a, auto_xg_b = calculate_xg(ratings_a, ratings_b)
-else:
-    auto_xg_a = BASE_XG
-    auto_xg_b = BASE_XG
+# Average ratings used as a neutral stand-in for any team missing from the CSV.
+_AVERAGE_RATINGS = {"elo": 1800, "attack_rating": 1.0, "defense_rating": 1.0,
+                    "form_rating": 1.0, "squad_rating": 1.0}
+
+auto_xg_a, auto_xg_b = calculate_xg(
+    ratings_a if ratings_a is not None else _AVERAGE_RATINGS,
+    ratings_b if ratings_b is not None else _AVERAGE_RATINGS,
+)
 
 # ── xG section ────────────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("Expected Goals (xG)")
 
-st.info(
-    f"**Auto-calculated xG** — {team_a}: **{auto_xg_a:.2f}** | {team_b}: **{auto_xg_b:.2f}**"
-)
-
 override = st.checkbox("Override xG manually", value=False)
+
+# Show auto xG values; label changes when user has enabled manual override.
+_label = "Auto-calculated xG (overridden below)" if override else "Auto-calculated xG"
+st.info(f"**{_label}** — {team_a}: **{auto_xg_a:.2f}** | {team_b}: **{auto_xg_b:.2f}**")
 
 col3, col4 = st.columns(2)
 
