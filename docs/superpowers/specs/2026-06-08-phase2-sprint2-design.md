@@ -135,14 +135,16 @@ This is mathematically equivalent to the original fit — predicted goals `λ = 
 
 **Four models on the same 40 WC 2022 matches:**
 
-| # | Model | xG Source | Runner |
+| # | Model | xG Source | What it answers |
 |---|---|---|---|
-| 1 | Illustrative (existing) | `team_ratings.csv` (AI-estimated) | `run_backtest()` |
-| 2 | Real rolling stats | `match_results.csv` (Sprint 1, real history) | new `run_rolling_stats_backtest()` wrapper |
-| 3 | MLE opponent strength | `team_strength_params.csv` (normalized) | `run_strength_backtest()` |
-| 4 | MLE + Dixon-Coles (best ρ) | Same as Model 3 with tuned ρ | `run_strength_backtest(model_type='dixon_coles', rho=best)` |
+| 1 | Illustrative baseline | `team_ratings.csv` (AI-estimated) | Does any data-driven model beat the hand-crafted baseline? |
+| 2 | Real data + raw rolling stats | `match_results.csv` → `calculate_pre_match_xg()` | Does using real historical rolling stats improve over placeholder? |
+| 3 | Real data + MLE strength | `team_strength_params.csv` (normalized) | Does opponent-strength adjustment via MLE improve over raw averages? |
+| 4 | MLE + Dixon-Coles (best ρ) | Same as Model 3 + tuned ρ | Does DC low-score correction improve over pure Poisson? |
 
-**Model 2 detail:** Uses the bidirectional resolver to extract real pre-match rolling stats for all 40 WC 2022 matches, then applies `calculate_pre_match_xg()` (the existing raw-stats formula, not MLE).
+**Model 2 detail:** Uses the bidirectional resolver to extract real pre-match rolling stats (goals_for, goals_against, ppg, ELO) for all 40 WC 2022 matches from `match_results.csv`, then applies `calculate_pre_match_xg()`. This formula computes `attack = goals_for / BASE_XG`, `defense = goals_against / BASE_XG` — the same raw-average approach as V6, but now powered by real data rather than placeholder values.
+
+**Note on Model 2 vs 3:** These are not the same formula. Model 2 uses raw per-game averages (opponent-blind); Model 3 uses MLE parameters that adjust for the quality of past opponents. The comparison answers: "Does opponent adjustment matter?"
 
 **Comparison table columns:** model, matches, 1X2 accuracy, Brier score, exact score acc, top 3 hit rate, top 5 hit rate, avg P(actual result).
 
