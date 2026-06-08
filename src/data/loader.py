@@ -6,17 +6,23 @@ from pathlib import Path
 _TEAMS_CSV = Path(__file__).parent.parent.parent / "data" / "teams.csv"
 
 
-def load_teams() -> list[str]:
+def load_teams(csv_path: Path | None = None) -> list[str]:
     """Load national team names from the local CSV.
 
     Returns a sorted list of team name strings.
     Raises FileNotFoundError if teams.csv is missing.
     Raises ValueError if the CSV is empty or missing the 'team' column.
-    """
-    if not _TEAMS_CSV.exists():
-        raise FileNotFoundError(f"Teams data file not found: {_TEAMS_CSV}")
 
-    df = pd.read_csv(_TEAMS_CSV)
+    Args:
+        csv_path: Optional path override. Defaults to data/teams.csv relative to this file.
+                  Pass a custom path in tests to avoid touching the real file.
+    """
+    path = csv_path if csv_path is not None else _TEAMS_CSV
+
+    if not path.exists():
+        raise FileNotFoundError(f"Teams data file not found: {path}")
+
+    df = pd.read_csv(path)
 
     if "team" not in df.columns:
         raise ValueError("teams.csv must have a 'team' column header")

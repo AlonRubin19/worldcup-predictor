@@ -28,3 +28,22 @@ def test_no_duplicates():
 def test_minimum_team_count():
     teams = load_teams()
     assert len(teams) >= 40
+
+
+def test_missing_file_raises(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_teams(tmp_path / "missing.csv")
+
+
+def test_missing_column_raises(tmp_path):
+    f = tmp_path / "teams.csv"
+    f.write_text("name\nArgentina\n")
+    with pytest.raises(ValueError, match="'team' column"):
+        load_teams(f)
+
+
+def test_empty_file_raises(tmp_path):
+    f = tmp_path / "teams.csv"
+    f.write_text("team\n")
+    with pytest.raises(ValueError, match="no team entries"):
+        load_teams(f)
