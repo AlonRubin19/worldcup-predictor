@@ -12,7 +12,8 @@ from src.models.poisson import predict
 from src.models.dixon_coles import predict_dixon_coles
 from src.backtesting.runner import run_backtest
 from src.backtesting.metrics import compute_metrics
-from src.backtesting.rho_tuning import tune_rho, select_best_rho
+from src.backtesting.rho_tuning import tune_rho, select_best_rho, DEFAULT_RHO_GRID, RhoResult
+from src.backtesting.valid_runner import run_valid_backtest
 
 # Fallback ratings for teams missing from team_ratings.csv.
 _AVG_RATINGS = {"elo": 1800, "attack_rating": 1.0, "defense_rating": 1.0,
@@ -147,7 +148,7 @@ with tab_predictor:
 # TAB 2 — BACKTESTING
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_backtest:
-    st.markdown("Model accuracy validated against historical international match results.")
+    st.markdown("This tab shows two separate backtests with clearly different data provenance.")
 
     bt_results_po = None
     bt_results_dc = None
@@ -166,6 +167,13 @@ with tab_backtest:
         st.error(f"Backtesting failed: {e}")
 
     if bt_metrics_po is not None and bt_metrics_dc is not None:
+        # ── Illustrative label ────────────────────────────────────────────────
+        st.warning(
+            "⚠️ **Illustrative Backtest** — uses `team_ratings.csv` (manually estimated by AI). "
+            "Ratings were assigned with knowledge of WC 2022 outcomes. "
+            "Results are for **engineering validation only**, not accuracy measurement."
+        )
+
         # ── Model comparison ──────────────────────────────────────────────────
         st.subheader("Model Comparison")
 
@@ -261,3 +269,68 @@ with tab_backtest:
                     f"Brier score by more than 0.001 "
                     f"(DC: {best_rho_result.brier_score:.4f}, Poisson: {poisson_brier:.4f})"
                 )
+
+        # ══ Valid Pre-Match Backtest ═══════════════════════════════════════════
+        st.markdown("---")
+        st.subheader("Valid Pre-Match Backtest")
+        st.info(
+            "📐 **Data provenance:** xG calculated from pre-match statistics only "
+            "(goals averages, form, ELO). No manually estimated ratings used.\n\n"
+            "⚠️ **PLACEHOLDER DATA:** `pre_match_team_stats.csv` contains sample values, "
+            "not real historical records. See `docs/valid_backtest_status.md`."
+        )
+
+        valid_results_po = None
+        valid_metrics_po = None
+        valid_rho_results = None
+        valid_best_rho = None
+        try:
+            valid_results_po = run_valid_backtest(model_type="poisson")
+            valid_metrics_po = compute_metrics(valid_results_po)
+
+            valid_rho_results = []
+            for rho_val in DEFAULT_RHO_GRID:
+                dc_results = run_valid_backtest(model_type="dixon_coles", rho=rho_val)
+                m_v = compute_metrics(dc_results)
+                valid_rho_results.append(RhoResult(
+                    rho=rho_val,
+                    accuracy_1x2=m_v.accuracy_1x2,
+                    exact_score_accuracy=m_v.exact_score_accuracy,
+                    top_3_hit_rate=m_v.top_3_hit_rate,
+                    top_5_hit_rate=m_v.top_5_hit_rate,
+                    brier_score=m_v.brier_score,
+                    avg_prob_actual_result=m_v.avg_prob_actual_result,
+                ))
+            valid_best_rho = select_best_rho(valid_rho_results)
+        except Exception as e:
+            st.error(f"Valid backtest failed: {e}")
+
+        if valid_metrics_po is not None:
+            valid_metrics_data = {
+                "Metric": [
+                    "Total Matches Tested", "1X2 Accuracy", "Exact Score Accuracy",
+                    "Top 3 Hit Rate", "Top 5 Hit Rate",
+                    "Brier Score (lower = better)", "Avg P(Actual Result)",
+                ],
+                "Poisson (pre-match xG)": [
+                    str(valid_metrics_po.total_matches),
+                    f"{valid_metrics_po.accuracy_1x2:.1%}",
+                    f"{valid_metrics_po.exact_score_accuracy:.1%}",
+                    f"{valid_metrics_po.top_3_hit_rate:.1%}",
+                    f"{valid_metrics_po.top_5_hit_rate:.1%}",
+                    f"{valid_metrics_po.brier_score:.4f}",
+                    f"{valid_metrics_po.avg_prob_actual_result:.1%}",
+                ],
+            }
+            st.table(pd.DataFrame(valid_metrics_data))
+
+        if valid_rho_results and valid_best_rho:
+            st.markdown("**Dixon-Coles rho grid (valid path):**")
+            valid_rho_rows = [{
+                "rho": f"{r.rho:.2f}", "1X2": f"{r.accuracy_1x2:.1%}",
+                "Exact": f"{r.exact_score_accuracy:.1%}", "Top3": f"{r.top_3_hit_rate:.1%}",
+                "Brier": f"{r.brier_score:.4f}",
+            } for r in valid_rho_results]
+            st.table(pd.DataFrame(valid_rho_rows))
+            st.caption(f"Best rho (valid path): {valid_best_rho.rho:.2f} "
+                       f"(Brier: {valid_best_rho.brier_score:.4f})")
