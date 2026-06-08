@@ -10,7 +10,7 @@ def test_returns_prediction_result():
 def test_probabilities_sum_to_one():
     result = predict("France", "Germany", 1.3, 1.1)
     total = result.win_a + result.draw + result.win_b
-    assert abs(total - 1.0) < 0.01  # allow small floating point gap from truncated matrix
+    assert abs(total - 1.0) < 1e-4  # adaptive matrix ensures tight coverage
 
 
 def test_probabilities_are_between_0_and_1():

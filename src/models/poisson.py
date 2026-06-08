@@ -42,7 +42,7 @@ def predict(
     if xg_a <= 0 or xg_b <= 0:
         raise ValueError(f"Expected goals must be > 0, got xg_a={xg_a}, xg_b={xg_b}")
 
-    max_goals = 11  # consider scores 0–10 for each team
+    max_goals = max(11, int(max(xg_a, xg_b) * 3) + 1)  # expands range for high xG
 
     # Build probability vectors for each team using the Poisson PMF.
     goals_range = np.arange(max_goals)
