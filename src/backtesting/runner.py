@@ -5,6 +5,7 @@ import pandas as pd
 from src.data.loader import load_team_ratings
 from src.models.xg_calculator import calculate_xg
 from src.models.poisson import predict
+from src.models.dixon_coles import predict_dixon_coles
 
 _MATCHES_CSV = Path(__file__).parent.parent.parent / "data" / "historical_matches.csv"
 
@@ -34,16 +35,18 @@ class MatchResult:
 def run_backtest(
     matches_path: Path | None = None,
     ratings: dict | None = None,
+    model_type: str = "poisson",
 ) -> list[MatchResult]:
     """Run model predictions for all historical matches and return per-match results.
 
     Args:
         matches_path: Path to historical_matches.csv. Defaults to data/historical_matches.csv.
         ratings: Dict from load_team_ratings(). Loaded from default CSV if not provided.
+        model_type: "poisson" (default) or "dixon_coles".
 
     Raises:
         FileNotFoundError: if matches CSV is missing.
-        ValueError: if a team in the CSV is not found in ratings.
+        ValueError: if a team in the CSV is not found in ratings, or if model_type is not "poisson" or "dixon_coles".
     """
     path = matches_path if matches_path is not None else _MATCHES_CSV
 
@@ -52,6 +55,9 @@ def run_backtest(
 
     if ratings is None:
         ratings = load_team_ratings()
+
+    if model_type not in ("poisson", "dixon_coles"):
+        raise ValueError(f"model_type must be 'poisson' or 'dixon_coles', got '{model_type}'")
 
     df = pd.read_csv(path)
     missing_cols = _REQUIRED_COLUMNS - set(df.columns)
@@ -69,7 +75,10 @@ def run_backtest(
             raise ValueError(f"Team '{team_b}' not found in ratings")
 
         xg_a, xg_b = calculate_xg(ratings[team_a], ratings[team_b])
-        prediction = predict(team_a, team_b, xg_a, xg_b)
+        if model_type == "dixon_coles":
+            prediction = predict_dixon_coles(team_a, team_b, xg_a, xg_b)
+        else:
+            prediction = predict(team_a, team_b, xg_a, xg_b)
 
         goals_a = int(row["team_a_goals"])
         goals_b = int(row["team_b_goals"])

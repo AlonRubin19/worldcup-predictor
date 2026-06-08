@@ -80,3 +80,25 @@ def test_missing_team_in_ratings_raises(tmp_path):
                           "form_rating":1.08,"squad_rating":1.12}}
     with pytest.raises(ValueError, match="not found in ratings"):
         run_backtest(csv, ratings)
+
+
+def test_run_backtest_with_poisson_model_type(tmp_path):
+    ratings = _minimal_ratings()
+    csv = _make_csv(tmp_path, [["2022-11-20","France","Brazil",2,1]])
+    results = run_backtest(csv, ratings, model_type="poisson")
+    assert len(results) == 1
+
+
+def test_run_backtest_with_dixon_coles_model_type(tmp_path):
+    ratings = _minimal_ratings()
+    csv = _make_csv(tmp_path, [["2022-11-20","France","Brazil",2,1]])
+    results = run_backtest(csv, ratings, model_type="dixon_coles")
+    assert len(results) == 1
+    assert isinstance(results[0].win_a_prob, float)
+
+
+def test_run_backtest_invalid_model_type_raises(tmp_path):
+    ratings = _minimal_ratings()
+    csv = _make_csv(tmp_path, [["2022-11-20","France","Brazil",2,1]])
+    with pytest.raises(ValueError, match="model_type"):
+        run_backtest(csv, ratings, model_type="invalid")
