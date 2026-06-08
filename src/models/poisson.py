@@ -12,7 +12,7 @@ class PredictionResult:
     draw: float    # probability of a draw
     win_b: float   # probability Team B wins
     # Each entry is (goals_a, goals_b, probability), sorted by probability descending.
-    top_scorelines: list
+    top_scorelines: list[tuple[int, int, float]]
 
 
 def predict(
@@ -46,12 +46,12 @@ def predict(
 
     # Build probability vectors for each team using the Poisson PMF.
     goals_range = np.arange(max_goals)
-    prob_a = poisson.pmf(goals_range, xg_a)  # shape: (11,)
-    prob_b = poisson.pmf(goals_range, xg_b)  # shape: (11,)
+    prob_a = poisson.pmf(goals_range, xg_a)  # shape: (max_goals,)
+    prob_b = poisson.pmf(goals_range, xg_b)  # shape: (max_goals,)
 
     # Outer product gives the joint probability matrix.
     # matrix[i][j] = P(Team A scores i) * P(Team B scores j)
-    matrix = np.outer(prob_a, prob_b)  # shape: (11, 11)
+    matrix = np.outer(prob_a, prob_b)  # shape: (max_goals, max_goals)
 
     # Win/draw probabilities from the score matrix.
     win_a = float(np.sum(np.tril(matrix, k=-1)))  # Team A scores more (below diagonal)
