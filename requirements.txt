@@ -3,3 +3,5 @@ pandas
 numpy
 scipy
 pytest
+python-dotenv
+requests

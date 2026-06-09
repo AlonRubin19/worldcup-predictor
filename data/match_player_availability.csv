@@ -1,0 +1,111 @@
+match_id,date,team,player_id,expected_starter,availability_status,availability_factor,form_factor,source_type,research_valid
+45777,2022-12-10,England,p001,True,fit,1.0,1.05,historical_lineup,false
+45777,2022-12-10,England,p002,True,fit,1.0,1.1,historical_lineup,false
+45777,2022-12-10,England,p003,True,fit,1.0,1.08,historical_lineup,false
+45777,2022-12-10,England,p004,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,England,p005,True,fit,1.0,0.98,historical_lineup,false
+45777,2022-12-10,England,p006,True,fit,1.0,0.92,historical_lineup,false
+45777,2022-12-10,England,p007,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,England,p008,True,fit,1.0,0.95,historical_lineup,false
+45777,2022-12-10,England,p009,True,fit,1.0,1.05,historical_lineup,false
+45777,2022-12-10,England,p010,True,fit,1.0,0.98,historical_lineup,false
+45777,2022-12-10,England,p011,True,fit,1.0,1.02,historical_lineup,false
+45777,2022-12-10,France,p101,True,fit,1.0,1.15,historical_lineup,false
+45777,2022-12-10,France,p102,True,fit,1.0,1.1,historical_lineup,false
+45777,2022-12-10,France,p103,True,fit,1.0,1.05,historical_lineup,false
+45777,2022-12-10,France,p104,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p105,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p106,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p107,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p108,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p109,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p110,True,fit,1.0,1.0,historical_lineup,false
+45777,2022-12-10,France,p111,True,fit,1.0,1.02,historical_lineup,false
+45786,2022-12-18,Argentina,p201,True,fit,1.0,1.15,historical_lineup,false
+45786,2022-12-18,Argentina,p202,True,fit,1.0,1.2,historical_lineup,false
+45786,2022-12-18,Argentina,p203,True,fit,1.0,1.05,historical_lineup,false
+45786,2022-12-18,Argentina,p204,True,fit,1.0,1.1,historical_lineup,false
+45786,2022-12-18,Argentina,p205,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,Argentina,p206,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,Argentina,p207,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,Argentina,p208,True,fit,1.0,1.05,historical_lineup,false
+45786,2022-12-18,Argentina,p209,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,Argentina,p210,True,fit,1.0,0.95,historical_lineup,false
+45786,2022-12-18,Argentina,p211,True,fit,1.0,1.08,historical_lineup,false
+45786,2022-12-18,France,p101,True,fit,1.0,1.15,historical_lineup,false
+45786,2022-12-18,France,p102,True,fit,1.0,1.1,historical_lineup,false
+45786,2022-12-18,France,p103,True,doubtful,0.6,0.8,manual_assumption,false
+45786,2022-12-18,France,p104,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,France,p105,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,France,p106,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,France,p107,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,France,p108,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,France,p109,True,doubtful,0.6,0.75,manual_assumption,false
+45786,2022-12-18,France,p110,True,fit,1.0,1.0,historical_lineup,false
+45786,2022-12-18,France,p111,True,fit,1.0,1.02,historical_lineup,false
+45776,2022-12-10,Morocco,p301,True,fit,1.0,1.1,historical_lineup,false
+45776,2022-12-10,Morocco,p302,True,fit,1.0,1.05,historical_lineup,false
+45776,2022-12-10,Morocco,p303,True,fit,1.0,1.02,historical_lineup,false
+45776,2022-12-10,Morocco,p304,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Morocco,p305,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Morocco,p306,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Morocco,p307,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Morocco,p308,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Morocco,p309,True,fit,1.0,1.05,historical_lineup,false
+45776,2022-12-10,Morocco,p310,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Morocco,p311,True,fit,1.0,1.05,historical_lineup,false
+45776,2022-12-10,Portugal,p401,True,fit,1.0,1.05,historical_lineup,false
+45776,2022-12-10,Portugal,p402,True,fit,1.0,1.1,historical_lineup,false
+45776,2022-12-10,Portugal,p403,True,fit,1.0,1.05,historical_lineup,false
+45776,2022-12-10,Portugal,p404,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Portugal,p405,True,doubtful,0.6,0.85,manual_assumption,false
+45776,2022-12-10,Portugal,p406,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Portugal,p407,True,fit,1.0,0.95,historical_lineup,false
+45776,2022-12-10,Portugal,p408,True,fit,1.0,1.0,historical_lineup,false
+45776,2022-12-10,Portugal,p409,True,fit,1.0,0.95,historical_lineup,false
+45776,2022-12-10,Portugal,p410,True,fit,1.0,1.05,historical_lineup,false
+45776,2022-12-10,Portugal,p411,True,fit,1.0,1.08,historical_lineup,false
+45723,2022-11-22,Argentina,p201,True,fit,1.0,1.1,historical_lineup,false
+45723,2022-11-22,Argentina,p202,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p203,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p204,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p205,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p206,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p207,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p208,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p209,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p210,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Argentina,p211,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p501,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p502,True,fit,1.0,1.05,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p503,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p504,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p505,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p506,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p507,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p508,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p509,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p510,True,fit,1.0,1.0,historical_lineup,false
+45723,2022-11-22,Saudi Arabia,p511,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Croatia,p601,True,fit,1.0,1.1,historical_lineup,false
+45773,2022-12-09,Croatia,p602,True,fit,1.0,1.05,historical_lineup,false
+45773,2022-12-09,Croatia,p603,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Croatia,p604,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Croatia,p605,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Croatia,p606,True,fit,1.0,0.95,historical_lineup,false
+45773,2022-12-09,Croatia,p607,True,fit,1.0,1.05,historical_lineup,false
+45773,2022-12-09,Croatia,p608,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Croatia,p609,True,fit,1.0,1.05,historical_lineup,false
+45773,2022-12-09,Croatia,p610,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Croatia,p611,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Brazil,p701,True,doubtful,0.6,0.75,manual_assumption,false
+45773,2022-12-09,Brazil,p702,True,fit,1.0,1.15,historical_lineup,false
+45773,2022-12-09,Brazil,p703,True,fit,1.0,1.05,historical_lineup,false
+45773,2022-12-09,Brazil,p704,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Brazil,p705,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Brazil,p706,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Brazil,p707,True,fit,1.0,1.0,historical_lineup,false
+45773,2022-12-09,Brazil,p708,True,fit,1.0,0.95,historical_lineup,false
+45773,2022-12-09,Brazil,p709,True,fit,1.0,1.05,historical_lineup,false
+45773,2022-12-09,Brazil,p710,True,fit,1.0,1.05,historical_lineup,false
+45773,2022-12-09,Brazil,p711,True,fit,1.0,1.05,historical_lineup,false

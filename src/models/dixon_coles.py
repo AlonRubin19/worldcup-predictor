@@ -55,3 +55,22 @@ def predict_dixon_coles(
     matrix /= matrix.sum()
 
     return _extract_result(team_a, team_b, matrix)
+
+
+def build_dc_matrix(xg_a: float, xg_b: float, rho: float = -0.10) -> np.ndarray:
+    """Return the DC-corrected, normalised score probability matrix.
+
+    Same math as predict_dixon_coles but returns the raw matrix instead of
+    deriving win/draw/lose probabilities. Useful for downstream market engines.
+    """
+    if xg_a <= 0 or xg_b <= 0:
+        raise ValueError(f"Expected goals must be > 0, got xg_a={xg_a}, xg_b={xg_b}")
+
+    matrix = build_score_matrix(xg_a, xg_b)
+    matrix[0, 0] *= 1 - (xg_a * xg_b * rho)
+    matrix[0, 1] *= 1 + (xg_a * rho)
+    matrix[1, 0] *= 1 + (xg_b * rho)
+    matrix[1, 1] *= 1 - rho
+    np.clip(matrix, 0.0, None, out=matrix)
+    matrix /= matrix.sum()
+    return matrix

@@ -7,3 +7,10 @@ dist/
 build/
 .venv/
 venv/
+
+# Environment / secrets — never commit
+.env
+.streamlit/secrets.toml
+
+# API cache — ephemeral, not for version control
+data/api_cache/

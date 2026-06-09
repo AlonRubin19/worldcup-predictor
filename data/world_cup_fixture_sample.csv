@@ -1,0 +1,49 @@
+match_id,stage,group,date,team_a,team_b
+1,group,A,2022-11-20,Qatar,Ecuador
+2,group,A,2022-11-25,Qatar,Senegal
+3,group,A,2022-11-25,Netherlands,Ecuador
+4,group,A,2022-11-29,Netherlands,Qatar
+5,group,A,2022-11-29,Ecuador,Senegal
+6,group,A,2022-11-29,Senegal,Netherlands
+7,group,B,2022-11-21,England,Iran
+8,group,B,2022-11-21,USA,Wales
+9,group,B,2022-11-25,Wales,Iran
+10,group,B,2022-11-25,England,USA
+11,group,B,2022-11-29,Wales,England
+12,group,B,2022-11-29,Iran,USA
+13,group,C,2022-11-22,Argentina,Saudi Arabia
+14,group,C,2022-11-22,Mexico,Poland
+15,group,C,2022-11-26,Poland,Saudi Arabia
+16,group,C,2022-11-26,Argentina,Mexico
+17,group,C,2022-11-30,Poland,Argentina
+18,group,C,2022-11-30,Saudi Arabia,Mexico
+19,group,D,2022-11-22,Denmark,Tunisia
+20,group,D,2022-11-22,France,Australia
+21,group,D,2022-11-26,Tunisia,Australia
+22,group,D,2022-11-26,France,Denmark
+23,group,D,2022-11-30,Tunisia,France
+24,group,D,2022-11-30,Australia,Denmark
+25,group,E,2022-11-23,Germany,Japan
+26,group,E,2022-11-23,Spain,Costa Rica
+27,group,E,2022-11-27,Japan,Costa Rica
+28,group,E,2022-11-27,Germany,Spain
+29,group,E,2022-12-01,Japan,Spain
+30,group,E,2022-12-01,Costa Rica,Germany
+31,group,F,2022-11-23,Morocco,Croatia
+32,group,F,2022-11-23,Belgium,Canada
+33,group,F,2022-11-27,Belgium,Morocco
+34,group,F,2022-11-27,Croatia,Canada
+35,group,F,2022-12-01,Croatia,Belgium
+36,group,F,2022-12-01,Canada,Morocco
+37,group,G,2022-11-24,Switzerland,Cameroon
+38,group,G,2022-11-24,Brazil,Serbia
+39,group,G,2022-11-28,Cameroon,Serbia
+40,group,G,2022-11-28,Brazil,Switzerland
+41,group,G,2022-12-02,Cameroon,Brazil
+42,group,G,2022-12-02,Serbia,Switzerland
+43,group,H,2022-11-24,Uruguay,South Korea
+44,group,H,2022-11-24,Portugal,Ghana
+45,group,H,2022-11-28,South Korea,Ghana
+46,group,H,2022-11-28,Portugal,Uruguay
+47,group,H,2022-12-02,Ghana,Uruguay
+48,group,H,2022-12-02,South Korea,Portugal
