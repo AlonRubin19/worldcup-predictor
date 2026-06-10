@@ -83,6 +83,78 @@ st.set_page_config(
     layout="centered",
 )
 
+st.markdown("""
+<style>
+/* ── Modern dark sports-app styling ─────────────────────────────────── */
+.block-container { padding-top: 1.5rem; padding-bottom: 2rem; max-width: 1100px; }
+
+/* Card containers (st.container(border=True)) */
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 14px !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    background: rgba(255,255,255,0.025);
+    transition: border-color 0.15s ease;
+}
+div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: rgba(255,255,255,0.18) !important;
+}
+
+/* Buttons */
+.stButton > button {
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* Metrics — bigger, bolder numbers */
+div[data-testid="stMetricValue"] {
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+div[data-testid="stMetricLabel"] {
+    opacity: 0.75;
+}
+
+/* Tabs */
+button[data-baseweb="tab"] {
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
+}
+
+/* Confidence pills */
+.cf-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+}
+.cf-high   { background: rgba(34,197,94,0.18);  color: #22c55e; border: 1px solid rgba(34,197,94,0.4); }
+.cf-medium { background: rgba(234,179,8,0.18);  color: #eab308; border: 1px solid rgba(234,179,8,0.4); }
+.cf-low    { background: rgba(239,68,68,0.18);  color: #ef4444; border: 1px solid rgba(239,68,68,0.4); }
+
+/* Signal chips */
+.sig-chip {
+    display: inline-block;
+    padding: 2px 9px;
+    margin: 2px 4px 2px 0;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* Reduce expander header padding for a tighter mobile look */
+.streamlit-expanderHeader { font-weight: 600; }
+
+@media (max-width: 640px) {
+    div[data-testid="stMetricValue"] { font-size: 1.25rem; }
+    .block-container { padding-left: 0.6rem; padding-right: 0.6rem; }
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("⚽ World Cup 2026 Prediction Platform")
 
 # ── Global session state defaults ──────────────────────────────────────────────
@@ -270,6 +342,45 @@ def _source_badge(prov) -> str:
     return "📁 CSV (static sample)"
 
 
+def _conf_pill(label: str) -> str:
+    """Return an HTML confidence pill (green/yellow/red)."""
+    cls = {"High": "cf-high", "Medium": "cf-medium", "Low": "cf-low"}.get(label, "cf-medium")
+    return f'<span class="cf-pill {cls}">{label} confidence</span>'
+
+
+def _render_match_card(fixture, prov, snaps, params, rv, key_prefix: str) -> None:
+    """Render a single match as a clean prediction card (used on the Home page)."""
+    pred, _, _ = _build_match_prediction(fixture, snaps, params, rv)
+
+    if pred.win_a >= pred.win_b and pred.win_a >= pred.draw:
+        winner_str = f"{fixture.team_a} to win"
+        winner_pct = pred.win_a
+    elif pred.win_b >= pred.draw:
+        winner_str = f"{fixture.team_b} to win"
+        winner_pct = pred.win_b
+    else:
+        winner_str = "Draw"
+        winner_pct = pred.draw
+
+    with st.container(border=True):
+        st.markdown(f"**{fixture.team_a} vs {fixture.team_b}**")
+        st.caption(f"{fixture.date}  •  {fixture.stage.replace('_', ' ').title()}"
+                   + (f" • Group {fixture.group}" if fixture.group else ""))
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.metric("Predicted winner", winner_str, f"{winner_pct:.0%}")
+        with c2:
+            st.metric("Most likely score", pred.most_likely_score)
+
+        st.markdown(_conf_pill(pred.confidence_label), unsafe_allow_html=True)
+        if pred.top_signal != "—":
+            st.markdown(f'<span class="sig-chip">🎯 {pred.top_signal}</span>', unsafe_allow_html=True)
+
+        if st.button("Analyze →", key=f"{key_prefix}_{fixture.match_id}", use_container_width=True):
+            _send_to_analyzer(fixture, prov)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 0 — HOME (prediction-first landing page)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -283,52 +394,35 @@ with tab_home:
 
     _home_snaps, _home_params, _home_rv = _load_board_model_data()
 
-    # ── Today's Matches ────────────────────────────────────────────────────────
-    st.subheader("📅 Today's Matches")
+    # ── Day picker ─────────────────────────────────────────────────────────────
     _home_today = _dt.date.today().isoformat()
-    _home_today_fix = sort_matches_by_datetime(filter_fixtures_by_date(_home_all, _home_today))
+    _home_dates = sorted({f.date for f in _home_all})
+    _home_default_idx = _home_dates.index(_home_today) if _home_today in _home_dates else 0
 
-    if not _home_today_fix:
-        st.info("No matches scheduled today. See **Upcoming Matches** below.")
+    _hd_c1, _hd_c2 = st.columns([3, 1])
+    with _hd_c1:
+        st.subheader("📅 Matches")
+    with _hd_c2:
+        _home_sel_date = st.selectbox(
+            "Day", _home_dates, index=_home_default_idx, key="home_day_select",
+            label_visibility="collapsed",
+        )
+
+    _home_day_fix = sort_matches_by_datetime(filter_fixtures_by_date(_home_all, _home_sel_date))
+    _home_day_label = "Today" if _home_sel_date == _home_today else _home_sel_date
+
+    if not _home_day_fix:
+        st.info(f"No matches scheduled on {_home_sel_date}. Pick another day above.")
     else:
-        for _hf in _home_today_fix:
-            _hpred, _, _ = _build_match_prediction(_hf, _home_snaps, _home_params, _home_rv)
-            _conf_emoji = {"High": "🟢", "Medium": "🟡", "Low": "🔴"}.get(_hpred.confidence_label, "⚪")
-            with st.container(border=True):
-                _hc1, _hc2, _hc3 = st.columns([3, 2, 1])
-                with _hc1:
-                    st.markdown(f"**{_hf.team_a} vs {_hf.team_b}**")
-                    st.caption(f"{_hf.date}  •  {_hf.stage.replace('_', ' ').title()}")
-                    if _hpred.win_a >= _hpred.win_b and _hpred.win_a >= _hpred.draw:
-                        _winner_str = f"Prediction: **{_hf.team_a} Win** ({_hpred.win_a:.0%})"
-                    elif _hpred.win_b >= _hpred.draw:
-                        _winner_str = f"Prediction: **{_hf.team_b} Win** ({_hpred.win_b:.0%})"
-                    else:
-                        _winner_str = f"Prediction: **Draw** ({_hpred.draw:.0%})"
-                    st.markdown(_winner_str)
-                with _hc2:
-                    st.metric("Most Likely", _hpred.most_likely_score)
-                    st.markdown(f"{_conf_emoji} Confidence: **{_hpred.confidence_label}**")
-                with _hc3:
-                    if _hpred.top_signal != "—":
-                        st.markdown(f"`{_hpred.top_signal}`")
-                    if st.button("Analyze →", key=f"home_analyze_{_hf.match_id}"):
-                        _send_to_analyzer(_hf, _home_prov)
-
-    # ── Upcoming Matches ───────────────────────────────────────────────────────
-    _home_next = get_next_fixtures(_home_all, n=5, today=_home_today)
-    if _home_next:
-        with st.expander(f"⏱️ Upcoming Matches (next {len(_home_next)})", expanded=False):
-            for _nf in _home_next:
-                _nfc1, _nfc2, _nfc3 = st.columns([3, 1, 1])
-                with _nfc1:
-                    st.markdown(f"**{_nf.team_a}** vs **{_nf.team_b}**  "
-                                f"— {_nf.date}  •  {_nf.stage.replace('_', ' ').title()}")
-                with _nfc2:
-                    st.caption(get_status_label(_nf.status))
-                with _nfc3:
-                    if st.button("Analyze →", key=f"home_upcoming_{_nf.match_id}"):
-                        _send_to_analyzer(_nf, _home_prov)
+        st.caption(f"**{_home_day_label}** — {len(_home_day_fix)} match(es)")
+        _home_cards = list(_home_day_fix)
+        for _row_start in range(0, len(_home_cards), 2):
+            _row = _home_cards[_row_start:_row_start + 2]
+            _cols = st.columns(len(_row))
+            for _col, _hf in zip(_cols, _row):
+                with _col:
+                    _render_match_card(_hf, _home_prov, _home_snaps, _home_params, _home_rv,
+                                        key_prefix="home_card")
 
     # ── Tournament Snapshot ────────────────────────────────────────────────────
     st.subheader("🏆 Tournament Snapshot")
@@ -969,7 +1063,17 @@ with tab_predictor:
             f"Lineup source: {_hdr_live.lineup_source}"
         )
 
-    # ── HERO: Live squad strength impact ─────────────────────────────────────
+    # ── MAIN FOCUS: Prediction card (win/draw/win, confidence, score, xG) ────
+    render_prediction_card(
+        team_a=team_a, team_b=team_b,
+        win_a=result.win_a, draw=result.draw, win_b=result.win_b,
+        xg_a=final_xg_a, xg_b=final_xg_b,
+        confidence=_confidence,
+        model_label=_model_label,
+    )
+    render_scoreline_table(result.top_scorelines, team_a, team_b)
+
+    # ── Compute supporting data (signals, squad strength, market blend) ──────
     from src.models.squad_strength_application import apply_squad_strength_to_match
     from src.data.live_injury_loader import load_live_injuries as _load_live_injuries
     from src.data.team_api_ids import TEAM_API_IDS as _TEAM_API_IDS
@@ -988,8 +1092,39 @@ with tab_predictor:
         team_a, team_b, float(final_xg_a), float(final_xg_b),
         profiles=_ss_profiles, injured_player_names=_ss_injured,
     )
-    if _ss_result.live_data_available:
-        with st.expander("👥 Live Squad Strength Impact", expanded=False):
+
+    _bm_matrix = build_dc_matrix(final_xg_a, final_xg_b, rho=DEFAULT_RHO)
+    _bm = compute_betting_markets(team_a, team_b, _bm_matrix)
+
+    _rec_set = generate_recommendations(
+        betting_markets=_bm,
+        prediction_confidence=_confidence.label,
+        data_warnings=_all_warnings,
+        is_research_valid=is_research_valid,
+        top_n=5,
+    )
+
+    from src.data.market_odds_loader import get_market_odds_for_match
+    _mkt = get_market_odds_for_match(team_a, team_b)
+    _blend = blend_probabilities(
+        model_win_a=result.win_a, model_draw=result.draw, model_win_b=result.win_b,
+        market_win_a=_mkt.win_a, market_draw=_mkt.draw, market_win_b=_mkt.win_b,
+        market_research_valid=_mkt.research_valid,
+    )
+
+    # ── MAIN FOCUS: Top model signals (kept visible, compact) ─────────────────
+    st.markdown("##### 🎯 Top Model Signals")
+    if _rec_set.recommendations:
+        _chip_html = ""
+        for r in _rec_set.recommendations[:5]:
+            _chip_html += f'<span class="sig-chip">{r.selection} — {r.model_probability:.0%}</span> '
+        st.markdown(_chip_html, unsafe_allow_html=True)
+    else:
+        st.caption("No high-signal markets identified for this match.")
+
+    # ── Collapsible: Squad strength & injuries ────────────────────────────────
+    with st.expander("👥 Squad Strength & Injuries", expanded=False):
+        if _ss_result.live_data_available:
             st.dataframe(pd.DataFrame({
                 "Metric": [f"{team_a} xG", f"{team_b} xG",
                            f"{team_a} Win %", "Draw %", f"{team_b} Win %"],
@@ -1008,86 +1143,58 @@ with tab_predictor:
                 f"Squad strength factors — {team_a}: {_ss_result.factor_a:.2f}x, "
                 f"{team_b}: {_ss_result.factor_b:.2f}x (1.00x = baseline)."
             )
-    else:
-        st.info("👥 Live squad data unavailable — using baseline team model.")
+        else:
+            st.info("👥 Live squad data unavailable — using baseline team model.")
 
-    # ── HERO: Injuries / unavailable players ─────────────────────────────────
-    if _ss_injured:
-        with st.expander(f"🩹 Injuries / Unavailable Players ({len(_ss_injured)})", expanded=False):
+        st.markdown("---")
+        if _ss_injured:
+            st.markdown(f"**🩹 Injuries / Unavailable Players ({len(_ss_injured)})**")
             st.write(", ".join(sorted(_ss_injured)))
             st.caption("Source: API-Football live injuries — applied to squad strength above.")
-    else:
-        st.caption("🩹 No live injury data available for this match.")
+        else:
+            st.caption("🩹 No live injury data available for this match.")
 
-    # ── HERO: Prediction card ─────────────────────────────────────────────────
-    render_prediction_card(
-        team_a=team_a, team_b=team_b,
-        win_a=result.win_a, draw=result.draw, win_b=result.win_b,
-        xg_a=final_xg_a, xg_b=final_xg_b,
-        confidence=_confidence,
-        model_label=_model_label,
-    )
-
-    # ── HERO: Score + xG card ─────────────────────────────────────────────────
-    render_scoreline_table(result.top_scorelines, team_a, team_b)
-
-    # ── HERO: Top Signals + Key Reasons ───────────────────────────────────────
-    _bm_matrix = build_dc_matrix(final_xg_a, final_xg_b, rho=DEFAULT_RHO)
-    _bm = compute_betting_markets(team_a, team_b, _bm_matrix)
-
-    _rec_set = generate_recommendations(
-        betting_markets=_bm,
-        prediction_confidence=_confidence.label,
-        data_warnings=_all_warnings,
-        is_research_valid=is_research_valid,
-        top_n=5,
-    )
-
-    st.markdown("---")
-    st.subheader("🎯 Top Signals")
-    st.caption("Model signal ranking — not betting advice.")
-    if _rec_set.recommendations:
-        _signal_rows = []
-        for r in _rec_set.recommendations:
-            _badge = {"Strong": "🟢 Strong", "Moderate": "🟡 Moderate", "Weak": "🔴 Weak"}.get(
-                r.signal_strength, r.signal_strength
+    # ── Collapsible: Market details ───────────────────────────────────────────
+    with st.expander("📊 Market Details (bookmaker blend)", expanded=False):
+        if _blend.used_market:
+            st.success(f"**{_blend.label}**" + (f" (source: {_mkt.bookmaker})" if _mkt.bookmaker else ""))
+            st.dataframe(pd.DataFrame({
+                "Outcome": [f"{team_a} Win", "Draw", f"{team_b} Win"],
+                "Raw model 1X2": [f"{result.win_a:.1%}", f"{result.draw:.1%}", f"{result.win_b:.1%}"],
+                "Market implied 1X2": [f"{_mkt.win_a:.1%}", f"{_mkt.draw:.1%}", f"{_mkt.win_b:.1%}"],
+                "Final blended 1X2": [f"{_blend.win_a:.1%}", f"{_blend.draw:.1%}", f"{_blend.win_b:.1%}"],
+            }), use_container_width=True, hide_index=True)
+        else:
+            st.info(
+                "**Market blend unavailable** — no research-valid bookmaker odds loaded for "
+                "this match. Showing 100% model probabilities "
+                "(Model + Market Blend would be 85% model / 15% bookmaker market when available)."
             )
-            _signal_rows.append({
-                "Selection": r.selection,
-                "Probability": f"{r.model_probability:.1%}",
-                "Fair Odds": f"{r.fair_odds:.2f}",
-                "Signal": _badge,
-                "Why": r.rationale.split(".")[0] + ".",
-            })
-        st.dataframe(pd.DataFrame(_signal_rows), use_container_width=True, hide_index=True)
-    else:
-        st.info("No high-signal markets identified for this match.")
 
-    st.subheader("🔑 Key Reasons")
-    render_explanation_panel(_expl, is_research_valid=is_research_valid and not _all_warnings)
+    # ── Collapsible: Advanced model details (signals table + key reasons) ────
+    with st.expander("🔬 Advanced Model Details", expanded=False):
+        st.markdown("**All Model Signals**")
+        st.caption("Signal ranking — not betting advice.")
+        if _rec_set.recommendations:
+            _signal_rows = []
+            for r in _rec_set.recommendations:
+                _badge = {"Strong": "🟢 Strong", "Moderate": "🟡 Moderate", "Weak": "🔴 Weak"}.get(
+                    r.signal_strength, r.signal_strength
+                )
+                _signal_rows.append({
+                    "Selection": r.selection,
+                    "Probability": f"{r.model_probability:.1%}",
+                    "Fair Odds": f"{r.fair_odds:.2f}",
+                    "Signal": _badge,
+                    "Why": r.rationale.split(".")[0] + ".",
+                })
+            st.dataframe(pd.DataFrame(_signal_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No high-signal markets identified for this match.")
 
-    # ── HERO: Market blend ────────────────────────────────────────────────────
-    from src.data.market_odds_loader import get_market_odds_for_match
-    _mkt = get_market_odds_for_match(team_a, team_b)
-    _blend = blend_probabilities(
-        model_win_a=result.win_a, model_draw=result.draw, model_win_b=result.win_b,
-        market_win_a=_mkt.win_a, market_draw=_mkt.draw, market_win_b=_mkt.win_b,
-        market_research_valid=_mkt.research_valid,
-    )
-    if _blend.used_market:
-        st.success(f"📊 **{_blend.label}**" + (f" (source: {_mkt.bookmaker})" if _mkt.bookmaker else ""))
-        st.dataframe(pd.DataFrame({
-            "Outcome": [f"{team_a} Win", "Draw", f"{team_b} Win"],
-            "Raw model 1X2": [f"{result.win_a:.1%}", f"{result.draw:.1%}", f"{result.win_b:.1%}"],
-            "Market implied 1X2": [f"{_mkt.win_a:.1%}", f"{_mkt.draw:.1%}", f"{_mkt.win_b:.1%}"],
-            "Final blended 1X2": [f"{_blend.win_a:.1%}", f"{_blend.draw:.1%}", f"{_blend.win_b:.1%}"],
-        }), use_container_width=True, hide_index=True)
-    else:
-        st.info(
-            "📊 **Market blend unavailable** — no research-valid bookmaker odds loaded for "
-            "this match. Showing 100% model probabilities "
-            "(Model + Market Blend would be 85% model / 15% bookmaker market when available)."
-        )
+        st.markdown("---")
+        st.markdown("**🔑 Key Reasons**")
+        render_explanation_panel(_expl, is_research_valid=is_research_valid and not _all_warnings)
 
     # ── Collapsible: Betting Markets ──────────────────────────────────────────
     with st.expander("💰 Betting Markets (full)", expanded=False):
@@ -1834,32 +1941,26 @@ with tab_tournament:
 
 
 with tab_golden_boot:
-    st.markdown(
-        "Project the **Golden Boot** (top tournament scorer) using each player's "
-        "expected goals across the tournament (xGT), driven by the tournament "
-        "simulation's expected number of matches per team."
-    )
-    st.caption(
-        "xGT = Expected Team Matches x (Expected Minutes / 90) x xG per 90 "
-        "x Penalty Factor x Starting Probability"
-    )
-    st.warning(
-        "**Engineering validation only** — player data is currently placeholder "
-        "(`data/player_profiles.csv`, 8 teams). The architecture is built so "
-        "API-Football player statistics can replace this data without code changes."
-    )
+    st.markdown("Projected **Golden Boot** (top tournament scorer) based on expected goals "
+                 "across the tournament for each player.")
+    st.warning("⚠️ **Estimate only** — based on placeholder player data. Tap below for details.")
 
     try:
         _gb_profiles = load_player_profiles()
         _gb_teams_covered = sorted({p.team for p in _gb_profiles.values()})
         _gb_valid_count = sum(1 for p in _gb_profiles.values() if p.research_valid)
-        st.caption(
-            f"📋 Player data source: {len(_gb_teams_covered)} of 48 WC2026 teams covered "
-            f"({', '.join(_gb_teams_covered)}). "
-            f"{_gb_valid_count}/{len(_gb_profiles)} player rows are research-valid "
-            f"(live API-Football season statistics); the rest are placeholder/manual estimates. "
-            f"Lineup source: 2022 World Cup placeholder data (not WC2026)."
-        )
+        with st.expander("ℹ️ Data sources & methodology", expanded=False):
+            st.caption(
+                "xGT = Expected Team Matches x (Expected Minutes / 90) x xG per 90 "
+                "x Penalty Factor x Starting Probability"
+            )
+            st.caption(
+                f"📋 Player data source: {len(_gb_teams_covered)} of 48 WC2026 teams covered "
+                f"({', '.join(_gb_teams_covered)}). "
+                f"{_gb_valid_count}/{len(_gb_profiles)} player rows are research-valid "
+                f"(live API-Football season statistics); the rest are placeholder/manual estimates. "
+                f"Lineup source: 2022 World Cup placeholder data (not WC2026)."
+            )
     except FileNotFoundError as e:
         _gb_profiles = {}
         st.error(f"Player profile data unavailable: {e}")
@@ -1905,22 +2006,24 @@ with tab_golden_boot:
     elif not _gb_results:
         st.info("No player profile data available for Golden Boot projections.")
     else:
-        # ── Data validity warnings ───────────────────────────────────────────
+        # ── Data validity warnings (condensed) ───────────────────────────────
         _gb_mc_cached = st.session_state.get("golden_boot_mc")
         _gb_valid_count2 = sum(1 for p in _gb_profiles.values() if p.research_valid)
-        if _gb_valid_count2 == 0:
-            st.warning("⚠️ All player data is placeholder/manual estimates — Golden Boot is "
-                       "**engineering-estimate only**, not research-valid.")
         _gb_major_candidates = ["Messi", "Mbappe", "Kane", "Haaland", "Yamal", "Vinicius",
                                  "Bellingham", "Olise"]
         _gb_names = " ".join(p.player_name for p in _gb_profiles.values())
         _gb_missing_majors = [n for n in _gb_major_candidates if n.split()[-1] not in _gb_names]
-        if _gb_missing_majors:
-            st.warning(f"⚠️ Missing major candidates from player data: {', '.join(_gb_missing_majors)}.")
         _gb_teams_with_data = {r.team for r in _gb_results}
-        if len(_gb_teams_with_data) < 48:
-            st.info(f"ℹ️ Squad data covers {len(_gb_teams_with_data)} of 48 teams — players from "
-                    "uncovered teams are absent from this projection.")
+
+        with st.expander("⚠️ Data quality notes", expanded=False):
+            if _gb_valid_count2 == 0:
+                st.caption("All player data is placeholder/manual estimates — engineering-estimate "
+                           "only, not research-valid.")
+            if _gb_missing_majors:
+                st.caption(f"Missing major candidates from player data: {', '.join(_gb_missing_majors)}.")
+            if len(_gb_teams_with_data) < 48:
+                st.caption(f"Squad data covers {len(_gb_teams_with_data)} of 48 teams — players from "
+                           "uncovered teams are absent from this projection.")
 
         # ── 1. Top 5 Golden Boot cards ───────────────────────────────────────
         st.subheader("🏅 Top 5 Golden Boot Favourites")
@@ -1967,78 +2070,66 @@ with tab_golden_boot:
             })
         st.dataframe(pd.DataFrame(gb_rows), use_container_width=True, hide_index=True)
 
-        # ── 2. Team-by-team scorer projections ─────────────────────────────
-        st.subheader("📋 Team-by-Team Scorer Projections")
-        gb_teams = sorted({r.team for r in _gb_results})
-        gb_team_choice = st.selectbox("Select team", gb_teams, key="gb_team_select")
-        team_rows = [
-            {
-                "Player": r.player_name,
-                "Position": r.position,
-                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
-                "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
-                "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
-                "P(5+ goals)": f"{r.prob_score_5plus:.1%}",
-                "P(7+ goals)": f"{r.prob_score_7plus:.1%}",
-                "Most Likely Goals": r.most_likely_goals,
-            }
-            for r in _gb_results if r.team == gb_team_choice
-        ]
-        st.dataframe(pd.DataFrame(team_rows), use_container_width=True, hide_index=True)
+        # ── More projections (collapsed) ────────────────────────────────────
+        with st.expander("📋 More projections (by team, dark horses, full totals)", expanded=False):
+            st.markdown("**Team-by-Team Scorer Projections**")
+            gb_teams = sorted({r.team for r in _gb_results})
+            gb_team_choice = st.selectbox("Select team", gb_teams, key="gb_team_select")
+            team_rows = [
+                {
+                    "Player": r.player_name,
+                    "Position": r.position,
+                    "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                    "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                    "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
+                    "P(5+ goals)": f"{r.prob_score_5plus:.1%}",
+                    "P(7+ goals)": f"{r.prob_score_7plus:.1%}",
+                    "Most Likely Goals": r.most_likely_goals,
+                }
+                for r in _gb_results if r.team == gb_team_choice
+            ]
+            st.dataframe(pd.DataFrame(team_rows), use_container_width=True, hide_index=True)
 
-        # ── 3. Golden Boot favourites cards ─────────────────────────────────
-        st.subheader("⭐ Golden Boot Favourites")
-        favourites = _gb_results[:5]
-        fav_cols = st.columns(len(favourites)) if favourites else []
-        for col, r in zip(fav_cols, favourites):
-            with col:
-                st.metric(
-                    label=f"{r.player_name} ({r.team})",
-                    value=f"{r.expected_goals:.2f} xG",
-                    delta=f"{r.prob_top_scorer:.1%} top scorer",
-                )
+            st.markdown("---")
+            st.markdown("**🐎 Dark Horses**")
+            st.caption(
+                "Players with modest expected goals but a non-trivial chance of a "
+                "breakout (3+ goal) tournament."
+            )
+            dark_horses = [
+                r for r in _gb_results
+                if r.expected_goals < 2.0 and r.prob_score_3plus >= 0.05
+            ]
+            dark_horses.sort(key=lambda r: -r.prob_score_3plus)
+            if dark_horses:
+                dh_rows = [
+                    {
+                        "Player": r.player_name,
+                        "Team": r.team,
+                        "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                        "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
+                        "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                    }
+                    for r in dark_horses[:10]
+                ]
+                st.dataframe(pd.DataFrame(dh_rows), use_container_width=True, hide_index=True)
+            else:
+                st.markdown("No dark-horse candidates found under current thresholds.")
 
-        # ── 4. Dark horse section ────────────────────────────────────────────
-        st.subheader("🐎 Dark Horses")
-        st.caption(
-            "Players with modest expected goals but a non-trivial chance of a "
-            "breakout (3+ goal) tournament."
-        )
-        dark_horses = [
-            r for r in _gb_results
-            if r.expected_goals < 2.0 and r.prob_score_3plus >= 0.05
-        ]
-        dark_horses.sort(key=lambda r: -r.prob_score_3plus)
-        if dark_horses:
-            dh_rows = [
+            st.markdown("---")
+            st.markdown("**🎯 Most Likely Final Goals Total**")
+            mlg_rows = [
                 {
                     "Player": r.player_name,
                     "Team": r.team,
                     "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
-                    "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
-                    "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                    "Most Likely Goals": r.most_likely_goals,
                 }
-                for r in dark_horses[:10]
+                for r in _gb_results[:25]
             ]
-            st.dataframe(pd.DataFrame(dh_rows), use_container_width=True, hide_index=True)
-        else:
-            st.markdown("No dark-horse candidates found under current thresholds.")
-
-        # ── 5. Most likely final goals total per player ────────────────────
-        st.subheader("🎯 Most Likely Final Goals Total")
-        mlg_rows = [
-            {
-                "Player": r.player_name,
-                "Team": r.team,
-                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
-                "Most Likely Goals": r.most_likely_goals,
-            }
-            for r in _gb_results[:25]
-        ]
-        st.dataframe(pd.DataFrame(mlg_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(mlg_rows), use_container_width=True, hide_index=True)
 
         st.caption(
             "Engineering validation only — based on placeholder player data for "
-            f"{len(set(r.team for r in _gb_results))} teams. "
-            "Model NOT modified; this tab is additive only."
+            f"{len(set(r.team for r in _gb_results))} teams."
         )
