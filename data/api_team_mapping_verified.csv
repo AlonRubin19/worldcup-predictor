@@ -1,33 +1,33 @@
 internal_team,api_team_name,api_team_id,country,match_method,confidence,verified,notes
-Argentina,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Australia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Belgium,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Brazil,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Cameroon,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Canada,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Costa Rica,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Croatia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Denmark,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Ecuador,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-England,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-France,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Germany,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Ghana,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Iran,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Japan,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Mexico,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Morocco,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Netherlands,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Poland,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Portugal,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Qatar,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Saudi Arabia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Senegal,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Serbia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-South Korea,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Spain,Spain,9,Spain,prior_session_validation,high,True,Validated live in a prior session.
-Switzerland,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Tunisia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-USA,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Uruguay,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
-Wales,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Argentina,Argentina,26,Argentina,exact_name_national,high,True,
+Australia,Australia,20,Australia,exact_name_national,high,True,
+Belgium,Belgium,1,Belgium,exact_name_national,high,True,
+Brazil,Brazil,6,Brazil,exact_name_national,high,True,
+Cameroon,Cameroon,1530,Cameroon,exact_name_national,high,True,
+Canada,Canada,5529,Canada,exact_name_national,high,True,
+Costa Rica,Costa Rica,29,Costa-Rica,exact_name_national,high,True,
+Croatia,Croatia,3,Croatia,exact_name_national,high,True,
+Denmark,Denmark,21,Denmark,exact_name_national,high,True,
+Ecuador,Ecuador,2382,Ecuador,exact_name_national,high,True,
+England,England,10,England,exact_name_national,high,True,
+France,France,2,France,exact_name_national,high,True,
+Germany,Germany,25,Germany,exact_name_national,high,True,
+Ghana,Ghana,1504,Ghana,exact_name_national,high,True,
+Iran,Iran,22,Iran,exact_name_national,high,True,
+Japan,Japan,12,Japan,exact_name_national,high,True,
+Mexico,Mexico,16,Mexico,exact_name_national,high,True,
+Morocco,Morocco,31,Morocco,exact_name_national,high,True,
+Netherlands,Netherlands,1118,Netherlands,exact_name_national,high,True,
+Poland,Poland,24,Poland,exact_name_national,high,True,
+Portugal,Portugal,27,Portugal,exact_name_national,high,True,
+Qatar,Qatar,1569,Qatar,exact_name_national,high,True,
+Saudi Arabia,Saudi Arabia,23,Saudi-Arabia,exact_name_national,high,True,
+Senegal,Senegal,13,Senegal,exact_name_national,high,True,
+Serbia,Serbia,14,Serbia,exact_name_national,high,True,
+South Korea,South Korea,17,South-Korea,exact_name_national,high,True,
+Spain,Spain,9,Spain,exact_name_national,high,True,
+Switzerland,Switzerland,15,Switzerland,exact_name_national,high,True,
+Tunisia,Tunisia,28,Tunisia,exact_name_national,high,True,
+USA,USA,2384,USA,exact_name_national,high,True,
+Uruguay,Uruguay,7,Uruguay,exact_name_national,high,True,
+Wales,Wales,767,Wales,exact_name_national,high,True,

@@ -43,6 +43,7 @@ from src.app.selected_fixture import (
     get_api_fixture_id, is_valid_selected_fixture,
 )
 from src.app.prediction_runner import RunnerInput, run_full_prediction, FullPrediction
+from src.models.market_blend import blend_probabilities
 from src.app.tournament_filters import (
     filter_fixtures, get_next_fixtures, get_today_fixtures,
     get_unique_stages, get_unique_groups, get_unique_teams,
@@ -1065,12 +1066,28 @@ with tab_predictor:
     st.subheader("🔑 Key Reasons")
     render_explanation_panel(_expl, is_research_valid=is_research_valid and not _all_warnings)
 
-    # ── HERO: Market blend badge ──────────────────────────────────────────────
-    st.info(
-        "📊 **Market blend unavailable** — no research-valid bookmaker odds loaded for "
-        "this match. Showing 100% model probabilities "
-        "(Model + Market Blend would be 85% model / 15% bookmaker market when available)."
+    # ── HERO: Market blend ────────────────────────────────────────────────────
+    from src.data.market_odds_loader import get_market_odds_for_match
+    _mkt = get_market_odds_for_match(team_a, team_b)
+    _blend = blend_probabilities(
+        model_win_a=result.win_a, model_draw=result.draw, model_win_b=result.win_b,
+        market_win_a=_mkt.win_a, market_draw=_mkt.draw, market_win_b=_mkt.win_b,
+        market_research_valid=_mkt.research_valid,
     )
+    if _blend.used_market:
+        st.success(f"📊 **{_blend.label}**" + (f" (source: {_mkt.bookmaker})" if _mkt.bookmaker else ""))
+        st.dataframe(pd.DataFrame({
+            "Outcome": [f"{team_a} Win", "Draw", f"{team_b} Win"],
+            "Raw model 1X2": [f"{result.win_a:.1%}", f"{result.draw:.1%}", f"{result.win_b:.1%}"],
+            "Market implied 1X2": [f"{_mkt.win_a:.1%}", f"{_mkt.draw:.1%}", f"{_mkt.win_b:.1%}"],
+            "Final blended 1X2": [f"{_blend.win_a:.1%}", f"{_blend.draw:.1%}", f"{_blend.win_b:.1%}"],
+        }), use_container_width=True, hide_index=True)
+    else:
+        st.info(
+            "📊 **Market blend unavailable** — no research-valid bookmaker odds loaded for "
+            "this match. Showing 100% model probabilities "
+            "(Model + Market Blend would be 85% model / 15% bookmaker market when available)."
+        )
 
     # ── Collapsible: Betting Markets ──────────────────────────────────────────
     with st.expander("💰 Betting Markets (full)", expanded=False):
