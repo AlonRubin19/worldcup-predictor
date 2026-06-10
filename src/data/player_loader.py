@@ -24,6 +24,9 @@ class PlayerProfile:
     defensive_actions_per_90: float
     international_caps: int
     base_impact_score: float
+    source_type: str = "placeholder"
+    research_valid: bool = False
+    penalty_taker: bool = False
 
 
 VALID_SOURCE_TYPES = frozenset(
@@ -72,6 +75,9 @@ def load_player_profiles(path: Path | None = None) -> dict[str, PlayerProfile]:
             defensive_actions_per_90=float(row["defensive_actions_per_90"]),
             international_caps=int(row["international_caps"]),
             base_impact_score=float(row["base_impact_score"]),
+            source_type=str(row["source_type"]) if "source_type" in df.columns else "placeholder",
+            research_valid=bool(row["research_valid"]) if "research_valid" in df.columns else False,
+            penalty_taker=bool(row["penalty_taker"]) if "penalty_taker" in df.columns else False,
         )
         for _, row in df.iterrows()
     }

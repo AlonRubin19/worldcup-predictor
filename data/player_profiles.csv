@@ -1,89 +1,142 @@
-player_id,player_name,team,position,club,minutes_last_90_days,national_team_minutes_last_12_months,goals_per_90,assists_per_90,xg_per_90,xa_per_90,defensive_actions_per_90,international_caps,base_impact_score
-p001,Harry Kane,England,FW,Bayern Munich,810,720,0.82,0.31,0.75,0.28,1.2,90,1.35
-p002,Bukayo Saka,England,MF,Arsenal,900,630,0.41,0.52,0.38,0.45,3.1,45,1.15
-p003,Jude Bellingham,England,MF,Real Madrid,810,720,0.38,0.29,0.35,0.24,4.2,50,1.20
-p004,Jordan Pickford,England,GK,Everton,900,720,0.0,0.0,0.0,0.0,5.8,70,0.90
-p005,Kieran Trippier,England,DF,Newcastle,810,720,0.10,0.20,0.09,0.18,5.5,40,0.88
-p006,Harry Maguire,England,DF,Man United,810,720,0.08,0.05,0.07,0.04,7.2,60,0.85
-p007,Kyle Walker,England,DF,Man City,810,720,0.05,0.15,0.04,0.12,6.1,70,0.87
-p008,Luke Shaw,England,DF,Man United,810,720,0.07,0.20,0.06,0.18,5.9,35,0.86
-p009,Declan Rice,England,MF,Arsenal,900,720,0.15,0.18,0.13,0.15,8.2,55,1.05
-p010,Mason Mount,England,MF,Man United,810,630,0.25,0.30,0.22,0.26,4.8,45,1.00
-p011,Raheem Sterling,England,FW,Chelsea,720,630,0.45,0.35,0.40,0.30,2.5,75,1.10
-p101,Kylian Mbappe,France,FW,Real Madrid,720,630,0.91,0.38,0.85,0.32,1.5,80,1.40
-p102,Antoine Griezmann,France,MF,Atletico Madrid,810,720,0.42,0.45,0.38,0.40,4.2,120,1.25
-p103,Ousmane Dembele,France,MF,Barcelona,810,630,0.38,0.42,0.33,0.37,3.8,55,1.10
-p104,Hugo Lloris,France,GK,Tottenham,900,720,0.0,0.0,0.0,0.0,4.5,140,0.95
-p105,Theo Hernandez,France,DF,AC Milan,810,720,0.12,0.22,0.10,0.19,6.2,45,0.88
-p106,Dayot Upamecano,France,DF,Bayern Munich,810,720,0.10,0.08,0.09,0.07,8.5,40,0.90
-p107,William Saliba,France,DF,Arsenal,900,630,0.08,0.06,0.07,0.05,9.0,25,0.87
-p108,Jules Kounde,France,DF,Barcelona,810,720,0.09,0.12,0.08,0.10,7.8,40,0.88
-p109,Aurelien Tchouameni,France,MF,Real Madrid,810,630,0.18,0.15,0.15,0.12,9.2,30,1.00
-p110,Adrien Rabiot,France,MF,Juventus,720,630,0.22,0.20,0.20,0.18,5.5,50,0.95
-p111,Olivier Giroud,France,FW,AC Milan,720,630,0.55,0.25,0.50,0.22,2.2,120,1.10
-p201,Lionel Messi,Argentina,FW,PSG,810,720,0.88,0.55,0.82,0.48,1.8,170,1.60
-p202,Julian Alvarez,Argentina,FW,Man City,810,720,0.55,0.28,0.50,0.24,2.8,25,1.15
-p203,Rodrigo De Paul,Argentina,MF,Atletico Madrid,810,720,0.22,0.32,0.20,0.28,6.2,55,1.05
-p204,Enzo Fernandez,Argentina,MF,Benfica,810,540,0.18,0.25,0.16,0.22,5.8,20,1.00
-p205,Emiliano Martinez,Argentina,GK,Aston Villa,900,720,0.0,0.0,0.0,0.0,4.8,20,1.00
-p206,Cristian Romero,Argentina,DF,Tottenham,810,720,0.12,0.08,0.10,0.06,9.5,30,0.95
-p207,Nicolas Otamendi,Argentina,DF,Benfica,810,720,0.10,0.05,0.08,0.04,9.8,100,0.88
-p208,Nahuel Molina,Argentina,DF,Atletico Madrid,810,630,0.15,0.25,0.13,0.22,5.5,25,0.90
-p209,Marcos Acuna,Argentina,DF,Sevilla,720,630,0.08,0.20,0.07,0.18,6.8,50,0.87
-p210,Leandro Paredes,Argentina,MF,Juventus,720,540,0.12,0.18,0.10,0.15,6.5,50,0.88
-p211,Angel Di Maria,Argentina,MF,Juventus,720,540,0.35,0.42,0.30,0.38,2.8,130,1.05
-p301,Achraf Hakimi,Morocco,DF,PSG,810,720,0.18,0.35,0.15,0.30,6.5,65,1.10
-p302,Hakim Ziyech,Morocco,MF,Chelsea,810,630,0.38,0.40,0.32,0.35,3.5,55,1.10
-p303,Sofiane Boufal,Morocco,MF,Angers,720,630,0.32,0.28,0.28,0.24,3.2,55,1.00
-p304,Yassine Bounou,Morocco,GK,Sevilla,900,720,0.0,0.0,0.0,0.0,4.5,50,0.95
-p305,Nayef Aguerd,Morocco,DF,West Ham,810,630,0.10,0.08,0.09,0.07,9.2,30,0.90
-p306,Romain Saiss,Morocco,DF,Besiktas,720,630,0.08,0.06,0.07,0.05,9.5,60,0.88
-p307,Noussair Mazraoui,Morocco,DF,Bayern Munich,810,630,0.12,0.22,0.10,0.20,6.2,35,0.90
-p308,Jawad El Yamiq,Morocco,DF,Valladolid,720,540,0.06,0.04,0.05,0.03,8.8,20,0.82
-p309,Sofyan Amrabat,Morocco,MF,Fiorentina,810,720,0.08,0.12,0.07,0.10,10.5,40,1.00
-p310,Selim Amallah,Morocco,MF,Standard Liege,720,540,0.18,0.20,0.16,0.18,5.5,25,0.88
-p311,Youssef En-Nesyri,Morocco,FW,Sevilla,810,630,0.45,0.18,0.40,0.15,2.2,50,1.05
-p401,Cristiano Ronaldo,Portugal,FW,Al Nassr,810,720,0.75,0.22,0.68,0.19,1.5,200,1.40
-p402,Bruno Fernandes,Portugal,MF,Man United,900,720,0.52,0.48,0.46,0.42,4.2,55,1.30
-p403,Bernardo Silva,Portugal,MF,Man City,900,720,0.35,0.42,0.30,0.37,5.8,75,1.20
-p404,Diogo Costa,Portugal,GK,Porto,900,630,0.0,0.0,0.0,0.0,4.8,20,0.92
-p405,Joao Cancelo,Portugal,DF,Man City,900,720,0.15,0.38,0.12,0.32,6.5,45,1.05
-p406,Ruben Dias,Portugal,DF,Man City,900,720,0.10,0.06,0.09,0.05,10.2,45,1.00
-p407,Pepe,Portugal,DF,Porto,810,630,0.12,0.06,0.10,0.05,9.8,130,0.88
-p408,Raphael Guerreiro,Portugal,DF,Dortmund,810,720,0.18,0.30,0.15,0.26,6.0,50,0.95
-p409,William Carvalho,Portugal,MF,Real Betis,810,630,0.08,0.12,0.07,0.10,8.5,80,0.88
-p410,Joao Felix,Portugal,MF,Atletico Madrid,810,630,0.42,0.32,0.38,0.28,3.2,30,1.10
-p411,Goncalo Ramos,Portugal,FW,Benfica,810,540,0.58,0.22,0.52,0.19,2.2,5,1.05
-p501,Mohammed Al-Owais,Saudi Arabia,GK,Al-Hilal,900,720,0.0,0.0,0.0,0.0,4.2,50,0.85
-p502,Salem Al-Dawsari,Saudi Arabia,MF,Al-Hilal,810,720,0.42,0.35,0.36,0.30,3.8,70,1.05
-p503,Firas Al-Buraikan,Saudi Arabia,FW,Al-Fateh,810,630,0.38,0.20,0.32,0.17,2.5,30,0.95
-p504,Saleh Al-Shehri,Saudi Arabia,FW,Al-Hilal,810,630,0.35,0.15,0.30,0.13,2.2,35,0.90
-p505,Mohammed Al-Burayk,Saudi Arabia,DF,Al-Hilal,810,720,0.05,0.15,0.04,0.12,7.2,65,0.82
-p506,Ali Al-Bulayhi,Saudi Arabia,DF,Al-Hilal,810,720,0.04,0.08,0.03,0.07,7.8,80,0.82
-p507,Hassan Tambakti,Saudi Arabia,DF,Al-Shabab,810,540,0.08,0.05,0.07,0.04,9.2,20,0.80
-p508,Saud Abdulhamid,Saudi Arabia,DF,Al-Qadisiyah,810,540,0.10,0.18,0.09,0.15,6.5,25,0.82
-p509,Abdulelah Al-Malki,Saudi Arabia,MF,Al-Hilal,810,630,0.12,0.15,0.10,0.13,7.5,40,0.85
-p510,Ali Al-Hassan,Saudi Arabia,MF,Al-Ittihad,720,540,0.10,0.12,0.09,0.10,6.8,25,0.82
-p511,Mohamed Kanno,Saudi Arabia,MF,Al-Hilal,810,630,0.08,0.10,0.07,0.09,8.2,50,0.83
-p601,Luka Modric,Croatia,MF,Real Madrid,810,720,0.28,0.38,0.24,0.33,6.2,170,1.35
-p602,Ivan Perisic,Croatia,MF,Tottenham,810,720,0.38,0.42,0.32,0.37,4.5,120,1.15
-p603,Andrej Kramaric,Croatia,FW,Hoffenheim,810,630,0.55,0.28,0.48,0.24,2.5,65,1.10
-p604,Dominik Livakovic,Croatia,GK,Dinamo Zagreb,900,720,0.0,0.0,0.0,0.0,4.2,55,0.92
-p605,Josip Juranovic,Croatia,DF,Celtic,810,630,0.12,0.22,0.10,0.20,6.5,35,0.88
-p606,Dejan Lovren,Croatia,DF,Zenit,810,630,0.10,0.08,0.09,0.07,9.0,85,0.85
-p607,Josko Gvardiol,Croatia,DF,RB Leipzig,900,630,0.12,0.10,0.10,0.08,10.0,20,0.98
-p608,Borna Sosa,Croatia,DF,Stuttgart,810,540,0.10,0.25,0.08,0.22,6.2,25,0.88
-p609,Mateo Kovacic,Croatia,MF,Man City,810,720,0.18,0.25,0.15,0.22,7.8,90,1.05
-p610,Marcelo Brozovic,Croatia,MF,Inter Milan,810,720,0.12,0.20,0.10,0.18,9.5,95,1.00
-p611,Bruno Petkovic,Croatia,FW,Dinamo Zagreb,720,540,0.40,0.18,0.35,0.15,2.5,35,0.92
-p701,Neymar,Brazil,FW,PSG,720,540,0.75,0.52,0.68,0.46,2.2,120,1.45
-p702,Vinicius Jr,Brazil,FW,Real Madrid,900,630,0.55,0.42,0.50,0.38,2.8,25,1.30
-p703,Richarlison,Brazil,FW,Tottenham,810,630,0.52,0.22,0.46,0.19,2.5,45,1.15
-p704,Alisson,Brazil,GK,Liverpool,900,720,0.0,0.0,0.0,0.0,4.5,70,1.00
-p705,Thiago Silva,Brazil,DF,Chelsea,810,720,0.08,0.06,0.07,0.05,10.5,115,0.95
-p706,Marquinhos,Brazil,DF,PSG,900,720,0.10,0.08,0.09,0.07,10.8,75,0.95
-p707,Danilo,Brazil,DF,Juventus,810,720,0.10,0.20,0.09,0.18,6.5,40,0.88
-p708,Alex Sandro,Brazil,DF,Juventus,720,630,0.08,0.18,0.07,0.15,6.2,45,0.85
-p709,Casemiro,Brazil,MF,Man United,810,720,0.18,0.15,0.15,0.12,10.2,70,1.05
-p710,Lucas Paqueta,Brazil,MF,West Ham,810,630,0.28,0.35,0.24,0.30,6.5,40,1.05
-p711,Rodrygo,Brazil,FW,Real Madrid,810,540,0.42,0.30,0.38,0.26,2.8,20,1.05
+player_id,player_name,team,position,club,minutes_last_90_days,national_team_minutes_last_12_months,goals_per_90,assists_per_90,xg_per_90,xa_per_90,defensive_actions_per_90,international_caps,base_impact_score,source_type,research_valid,penalty_taker
+p001,Harry Kane,England,FW,Bayern Munich,810.0,720.0,0.82,0.31,0.75,0.28,1.2,90,1.35,placeholder,False,True
+p002,Bukayo Saka,England,MF,Arsenal,900.0,630.0,0.41,0.52,0.38,0.45,3.1,45,1.15,placeholder,False,False
+p003,Jude Bellingham,England,MF,Real Madrid,810.0,720.0,0.38,0.29,0.35,0.24,4.2,50,1.2,placeholder,False,False
+p004,Jordan Pickford,England,GK,Everton,900.0,720.0,0.0,0.0,0.0,0.0,5.8,70,0.9,placeholder,False,False
+p005,Kieran Trippier,England,DF,Newcastle,810.0,720.0,0.1,0.2,0.09,0.18,5.5,40,0.88,placeholder,False,False
+p006,Harry Maguire,England,DF,Man United,810.0,720.0,0.08,0.05,0.07,0.04,7.2,60,0.85,placeholder,False,False
+p007,Kyle Walker,England,DF,Man City,810.0,720.0,0.05,0.15,0.04,0.12,6.1,70,0.87,placeholder,False,False
+p008,Luke Shaw,England,DF,Man United,810.0,720.0,0.07,0.2,0.06,0.18,5.9,35,0.86,placeholder,False,False
+p009,Declan Rice,England,MF,Arsenal,900.0,720.0,0.15,0.18,0.13,0.15,8.2,55,1.05,placeholder,False,False
+p010,Mason Mount,England,MF,Man United,810.0,630.0,0.25,0.3,0.22,0.26,4.8,45,1.0,placeholder,False,False
+p011,Raheem Sterling,England,FW,Chelsea,720.0,630.0,0.45,0.35,0.4,0.3,2.5,75,1.1,placeholder,False,False
+p101,Kylian Mbappe,France,FW,Real Madrid,720.0,630.0,0.91,0.38,0.85,0.32,1.5,80,1.4,placeholder,False,True
+p102,Antoine Griezmann,France,MF,Atletico Madrid,810.0,720.0,0.42,0.45,0.38,0.4,4.2,120,1.25,placeholder,False,False
+p103,Ousmane Dembele,France,MF,Barcelona,810.0,630.0,0.38,0.42,0.33,0.37,3.8,55,1.1,placeholder,False,False
+p104,Hugo Lloris,France,GK,Tottenham,900.0,720.0,0.0,0.0,0.0,0.0,4.5,140,0.95,placeholder,False,False
+p105,Theo Hernandez,France,DF,AC Milan,810.0,720.0,0.12,0.22,0.1,0.19,6.2,45,0.88,placeholder,False,False
+p106,Dayot Upamecano,France,DF,Bayern Munich,810.0,720.0,0.1,0.08,0.09,0.07,8.5,40,0.9,placeholder,False,False
+p107,William Saliba,France,DF,Arsenal,900.0,630.0,0.08,0.06,0.07,0.05,9.0,25,0.87,placeholder,False,False
+p108,Jules Kounde,France,DF,Barcelona,810.0,720.0,0.09,0.12,0.08,0.1,7.8,40,0.88,placeholder,False,False
+p109,Aurelien Tchouameni,France,MF,Real Madrid,810.0,630.0,0.18,0.15,0.15,0.12,9.2,30,1.0,placeholder,False,False
+p110,Adrien Rabiot,France,MF,Juventus,720.0,630.0,0.22,0.2,0.2,0.18,5.5,50,0.95,placeholder,False,False
+p111,Olivier Giroud,France,FW,AC Milan,720.0,630.0,0.55,0.25,0.5,0.22,2.2,120,1.1,placeholder,False,False
+p201,Lionel Messi,Argentina,FW,PSG,810.0,720.0,0.88,0.55,0.82,0.48,1.8,170,1.6,placeholder,False,True
+p202,Julian Alvarez,Argentina,FW,Man City,810.0,720.0,0.55,0.28,0.5,0.24,2.8,25,1.15,placeholder,False,False
+p203,Rodrigo De Paul,Argentina,MF,Atletico Madrid,810.0,720.0,0.22,0.32,0.2,0.28,6.2,55,1.05,placeholder,False,False
+p204,Enzo Fernandez,Argentina,MF,Benfica,810.0,540.0,0.18,0.25,0.16,0.22,5.8,20,1.0,placeholder,False,False
+p205,Emiliano Martinez,Argentina,GK,Aston Villa,900.0,720.0,0.0,0.0,0.0,0.0,4.8,20,1.0,placeholder,False,False
+p206,Cristian Romero,Argentina,DF,Tottenham,810.0,720.0,0.12,0.08,0.1,0.06,9.5,30,0.95,placeholder,False,False
+p207,Nicolas Otamendi,Argentina,DF,Benfica,810.0,720.0,0.1,0.05,0.08,0.04,9.8,100,0.88,placeholder,False,False
+p208,Nahuel Molina,Argentina,DF,Atletico Madrid,810.0,630.0,0.15,0.25,0.13,0.22,5.5,25,0.9,placeholder,False,False
+p209,Marcos Acuna,Argentina,DF,Sevilla,720.0,630.0,0.08,0.2,0.07,0.18,6.8,50,0.87,placeholder,False,False
+p210,Leandro Paredes,Argentina,MF,Juventus,720.0,540.0,0.12,0.18,0.1,0.15,6.5,50,0.88,placeholder,False,False
+p211,Angel Di Maria,Argentina,MF,Juventus,720.0,540.0,0.35,0.42,0.3,0.38,2.8,130,1.05,placeholder,False,False
+p301,Achraf Hakimi,Morocco,DF,PSG,810.0,720.0,0.18,0.35,0.15,0.3,6.5,65,1.1,placeholder,False,False
+p302,Hakim Ziyech,Morocco,MF,Chelsea,810.0,630.0,0.38,0.4,0.32,0.35,3.5,55,1.1,placeholder,False,False
+p303,Sofiane Boufal,Morocco,MF,Angers,720.0,630.0,0.32,0.28,0.28,0.24,3.2,55,1.0,placeholder,False,False
+p304,Yassine Bounou,Morocco,GK,Sevilla,900.0,720.0,0.0,0.0,0.0,0.0,4.5,50,0.95,placeholder,False,False
+p305,Nayef Aguerd,Morocco,DF,West Ham,810.0,630.0,0.1,0.08,0.09,0.07,9.2,30,0.9,placeholder,False,False
+p306,Romain Saiss,Morocco,DF,Besiktas,720.0,630.0,0.08,0.06,0.07,0.05,9.5,60,0.88,placeholder,False,False
+p307,Noussair Mazraoui,Morocco,DF,Bayern Munich,810.0,630.0,0.12,0.22,0.1,0.2,6.2,35,0.9,placeholder,False,False
+p308,Jawad El Yamiq,Morocco,DF,Valladolid,720.0,540.0,0.06,0.04,0.05,0.03,8.8,20,0.82,placeholder,False,False
+p309,Sofyan Amrabat,Morocco,MF,Fiorentina,810.0,720.0,0.08,0.12,0.07,0.1,10.5,40,1.0,placeholder,False,False
+p310,Selim Amallah,Morocco,MF,Standard Liege,720.0,540.0,0.18,0.2,0.16,0.18,5.5,25,0.88,placeholder,False,False
+p311,Youssef En-Nesyri,Morocco,FW,Sevilla,810.0,630.0,0.45,0.18,0.4,0.15,2.2,50,1.05,placeholder,False,False
+p401,Cristiano Ronaldo,Portugal,FW,Al Nassr,810.0,720.0,0.75,0.22,0.68,0.19,1.5,200,1.4,placeholder,False,True
+p402,Bruno Fernandes,Portugal,MF,Man United,900.0,720.0,0.52,0.48,0.46,0.42,4.2,55,1.3,placeholder,False,False
+p403,Bernardo Silva,Portugal,MF,Man City,900.0,720.0,0.35,0.42,0.3,0.37,5.8,75,1.2,placeholder,False,False
+p404,Diogo Costa,Portugal,GK,Porto,900.0,630.0,0.0,0.0,0.0,0.0,4.8,20,0.92,placeholder,False,False
+p405,Joao Cancelo,Portugal,DF,Man City,900.0,720.0,0.15,0.38,0.12,0.32,6.5,45,1.05,placeholder,False,False
+p406,Ruben Dias,Portugal,DF,Man City,900.0,720.0,0.1,0.06,0.09,0.05,10.2,45,1.0,placeholder,False,False
+p407,Pepe,Portugal,DF,Porto,810.0,630.0,0.12,0.06,0.1,0.05,9.8,130,0.88,placeholder,False,False
+p408,Raphael Guerreiro,Portugal,DF,Dortmund,810.0,720.0,0.18,0.3,0.15,0.26,6.0,50,0.95,placeholder,False,False
+p409,William Carvalho,Portugal,MF,Real Betis,810.0,630.0,0.08,0.12,0.07,0.1,8.5,80,0.88,placeholder,False,False
+p410,Joao Felix,Portugal,MF,Atletico Madrid,810.0,630.0,0.42,0.32,0.38,0.28,3.2,30,1.1,placeholder,False,False
+p411,Goncalo Ramos,Portugal,FW,Benfica,810.0,540.0,0.58,0.22,0.52,0.19,2.2,5,1.05,placeholder,False,False
+p501,Mohammed Al-Owais,Saudi Arabia,GK,Al-Hilal,900.0,720.0,0.0,0.0,0.0,0.0,4.2,50,0.85,placeholder,False,False
+p502,Salem Al-Dawsari,Saudi Arabia,MF,Al-Hilal,810.0,720.0,0.42,0.35,0.36,0.3,3.8,70,1.05,placeholder,False,False
+p503,Firas Al-Buraikan,Saudi Arabia,FW,Al-Fateh,810.0,630.0,0.38,0.2,0.32,0.17,2.5,30,0.95,placeholder,False,False
+p504,Saleh Al-Shehri,Saudi Arabia,FW,Al-Hilal,810.0,630.0,0.35,0.15,0.3,0.13,2.2,35,0.9,placeholder,False,False
+p505,Mohammed Al-Burayk,Saudi Arabia,DF,Al-Hilal,810.0,720.0,0.05,0.15,0.04,0.12,7.2,65,0.82,placeholder,False,False
+p506,Ali Al-Bulayhi,Saudi Arabia,DF,Al-Hilal,810.0,720.0,0.04,0.08,0.03,0.07,7.8,80,0.82,placeholder,False,False
+p507,Hassan Tambakti,Saudi Arabia,DF,Al-Shabab,810.0,540.0,0.08,0.05,0.07,0.04,9.2,20,0.8,placeholder,False,False
+p508,Saud Abdulhamid,Saudi Arabia,DF,Al-Qadisiyah,810.0,540.0,0.1,0.18,0.09,0.15,6.5,25,0.82,placeholder,False,False
+p509,Abdulelah Al-Malki,Saudi Arabia,MF,Al-Hilal,810.0,630.0,0.12,0.15,0.1,0.13,7.5,40,0.85,placeholder,False,False
+p510,Ali Al-Hassan,Saudi Arabia,MF,Al-Ittihad,720.0,540.0,0.1,0.12,0.09,0.1,6.8,25,0.82,placeholder,False,False
+p511,Mohamed Kanno,Saudi Arabia,MF,Al-Hilal,810.0,630.0,0.08,0.1,0.07,0.09,8.2,50,0.83,placeholder,False,False
+p601,Luka Modric,Croatia,MF,Real Madrid,810.0,720.0,0.28,0.38,0.24,0.33,6.2,170,1.35,placeholder,False,False
+p602,Ivan Perisic,Croatia,MF,Tottenham,810.0,720.0,0.38,0.42,0.32,0.37,4.5,120,1.15,placeholder,False,False
+p603,Andrej Kramaric,Croatia,FW,Hoffenheim,810.0,630.0,0.55,0.28,0.48,0.24,2.5,65,1.1,placeholder,False,False
+p604,Dominik Livakovic,Croatia,GK,Dinamo Zagreb,900.0,720.0,0.0,0.0,0.0,0.0,4.2,55,0.92,placeholder,False,False
+p605,Josip Juranovic,Croatia,DF,Celtic,810.0,630.0,0.12,0.22,0.1,0.2,6.5,35,0.88,placeholder,False,False
+p606,Dejan Lovren,Croatia,DF,Zenit,810.0,630.0,0.1,0.08,0.09,0.07,9.0,85,0.85,placeholder,False,False
+p607,Josko Gvardiol,Croatia,DF,RB Leipzig,900.0,630.0,0.12,0.1,0.1,0.08,10.0,20,0.98,placeholder,False,False
+p608,Borna Sosa,Croatia,DF,Stuttgart,810.0,540.0,0.1,0.25,0.08,0.22,6.2,25,0.88,placeholder,False,False
+p609,Mateo Kovacic,Croatia,MF,Man City,810.0,720.0,0.18,0.25,0.15,0.22,7.8,90,1.05,placeholder,False,False
+p610,Marcelo Brozovic,Croatia,MF,Inter Milan,810.0,720.0,0.12,0.2,0.1,0.18,9.5,95,1.0,placeholder,False,False
+p611,Bruno Petkovic,Croatia,FW,Dinamo Zagreb,720.0,540.0,0.4,0.18,0.35,0.15,2.5,35,0.92,placeholder,False,False
+p701,Neymar,Brazil,FW,PSG,720.0,540.0,0.75,0.52,0.68,0.46,2.2,120,1.45,placeholder,False,False
+p702,Vinicius Jr,Brazil,FW,Real Madrid,900.0,630.0,0.55,0.42,0.5,0.38,2.8,25,1.3,placeholder,False,False
+p703,Richarlison,Brazil,FW,Tottenham,810.0,630.0,0.52,0.22,0.46,0.19,2.5,45,1.15,placeholder,False,False
+p704,Alisson,Brazil,GK,Liverpool,900.0,720.0,0.0,0.0,0.0,0.0,4.5,70,1.0,placeholder,False,False
+p705,Thiago Silva,Brazil,DF,Chelsea,810.0,720.0,0.08,0.06,0.07,0.05,10.5,115,0.95,placeholder,False,False
+p706,Marquinhos,Brazil,DF,PSG,900.0,720.0,0.1,0.08,0.09,0.07,10.8,75,0.95,placeholder,False,False
+p707,Danilo,Brazil,DF,Juventus,810.0,720.0,0.1,0.2,0.09,0.18,6.5,40,0.88,placeholder,False,False
+p708,Alex Sandro,Brazil,DF,Juventus,720.0,630.0,0.08,0.18,0.07,0.15,6.2,45,0.85,placeholder,False,False
+p709,Casemiro,Brazil,MF,Man United,810.0,720.0,0.18,0.15,0.15,0.12,10.2,70,1.05,placeholder,False,False
+p710,Lucas Paqueta,Brazil,MF,West Ham,810.0,630.0,0.28,0.35,0.24,0.3,6.5,40,1.05,placeholder,False,False
+p711,Rodrygo,Brazil,FW,Real Madrid,810.0,540.0,0.42,0.3,0.38,0.26,2.8,20,1.05,placeholder,False,False
+p112,Michael Olise,France,MF,Bayern Munich,0.0,0.0,0.3,0.35,0.28,0.32,2.5,10,1.05,manual_assumption,False,False
+esp001,Joan García,Spain,GK,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp002,David Raya,Spain,GK,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp003,Unai Simón,Spain,GK,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp004,Pau Cubarsí Paredes,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp005,Marc Cucurella,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp006,Eric García,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp007,Álex Grimaldo,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp008,Aymeric Laporte,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp009,Marcos Llorente,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp010,Pedro Porro,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp011,Marc Pubill,Spain,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp012,Gavi,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp013,Mikel Merino,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp014,Pedri,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp015,Rodri,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp016,Fabián Ruiz,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp017,Martín Zubimendi,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp018,Álex Baena,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp019,Dani Olmo,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp020,Borja Iglesias,Spain,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp021,Lamine Yamal,Spain,FW,,0.0,0.0,0.35,0.4,0.45,0.4,0.0,0,1.0,manual_assumption,False,False
+esp022,Víctor Muñoz,Spain,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp023,Mikel Oyarzabal,Spain,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp024,Yeremy Pino,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp025,Ferran Torres,Spain,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+esp026,Nico Williams,Spain,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor001,Ø. Nyland,Norway,GK,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor002,E. Selvik,Norway,GK,,92.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor003,S. Tangvik,Norway,GK,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor004,K. Ajer,Norway,DF,,92.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor005,F. Bjørkan,Norway,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor006,H. Falchener,Norway,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor007,S. Langås,Norway,DF,,598.0,0.0,0.1505016722408027,0.0,0.1354515050167224,0.11287625418060201,0.0,0,1.0,api_football,True,False
+nor008,T. Heggem,Norway,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor009,L. Østigård,Norway,DF,,92.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor010,M. Pedersen,Norway,DF,,0.0,0.0,0.0,0.0,0.03,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor011,D. Møller Wolfe,Norway,DF,,168.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor012,T. Aasgaard,Norway,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor013,F. Aursnes,Norway,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor014,P. Berg,Norway,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor015,S. Berge,Norway,MF,,90.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor016,Oscar Bobb,Norway,MF,,182.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor017,M. Ødegaard,Norway,MF,,45.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor018,M. Thorsby,Norway,MF,,0.0,0.0,0.0,0.0,0.08,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor019,K. Thorstvedt,Norway,MF,,1133.0,0.0,0.1588702559576346,0.0794351279788173,0.19064430714916153,0.1588702559576346,0.0,0,1.0,api_football,True,False
+nor020,A. Schjelderup,Norway,FW,,144.0,0.0,0.0,0.625,0.1875,0.15625,0.0,0,1.0,api_football,True,True
+nor021,J. Hauge,Norway,MF,,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0,1.0,api_football,True,False
+nor022,E. Haaland,Norway,FW,,45.0,0.0,1.0,0.1,0.95,0.08,0.0,0,1.0,manual_assumption,False,True
+nor023,J. Strand Larsen,Norway,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor024,A. Nusa,Norway,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor025,A. Sørloth,Norway,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
+nor026,J. Ryerson,Norway,DF,,92.0,0.0,0.0,0.0,0.2934782608695652,0.24456521739130435,0.0,0,1.0,api_football,True,False

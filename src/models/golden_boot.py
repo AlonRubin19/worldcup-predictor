@@ -44,6 +44,7 @@ from src.tournament.simulator import MonteCarloResult
 
 DEFAULT_EXPECTED_MINUTES = 90.0
 DEFAULT_PENALTY_FACTOR = 1.0
+PENALTY_TAKER_FACTOR = 1.05
 DEFAULT_STARTING_PROBABILITY_BY_POSITION = {
     "FW": 0.80,
     "MF": 0.75,
@@ -203,7 +204,8 @@ def predict_golden_boot(
     for pid, prof in profiles.items():
         team_matches = expected_team_matches(prof.team, mc)
         minutes = expected_minutes.get(pid, DEFAULT_EXPECTED_MINUTES)
-        pen = penalty_factors.get(pid, DEFAULT_PENALTY_FACTOR)
+        default_pen = PENALTY_TAKER_FACTOR if getattr(prof, "penalty_taker", False) else DEFAULT_PENALTY_FACTOR
+        pen = penalty_factors.get(pid, default_pen)
         start_p = starting_probabilities.get(pid, _starting_probability_for(prof))
 
         xgt = compute_xgt(team_matches, minutes, prof.xg_per_90, pen, start_p)

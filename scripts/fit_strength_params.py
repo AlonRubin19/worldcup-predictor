@@ -1,7 +1,17 @@
 """Fit MLE team strength parameters from match_results.csv.
 
-Reads data/match_results.csv and fits Dixon-Coles Poisson attack/defense
-parameters for every team using all matches before WC 2022 (< 2022-11-20).
+Sprint 17 (Fresh Data Refit): Reads data/match_results.csv and fits
+Dixon-Coles Poisson attack/defense parameters for every team using ALL
+matches up to the latest available date, with exponential time-decay
+weighting (decay_halflife_days) so recent national-team form dominates
+the fit while older history still contributes.
+
+Previously this script only used matches BEFORE 2022-11-20 (the 2022 World
+Cup), which froze alpha/beta at pre-2022 values while ELO/form (loaded
+separately from match_results.csv) continued to update. This produced a
+~3.5 year mismatch between ELO/form (fresh) and alpha/beta (frozen 2022).
+The old output is preserved at data/team_strength_params_2022_archive.csv
+for before/after comparison.
 
 Run from project root:
     python scripts/fit_strength_params.py
@@ -19,7 +29,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.models.mle_fitter import fit_team_params
 
 _DATA_DIR = Path(__file__).parent.parent / "data"
-_CUTOFF_DATE = "2022-11-20"  # WC 2022 start — fit on matches BEFORE this date
+_DECAY_HALFLIFE_DAYS = 365  # ~1 year half-life: recent form dominates,
+                            # but international teams play infrequently
+                            # so a full year of history still matters.
+_TRAIN_START_DATE = "2014-01-01"  # bound the dataset to ~12 years / 3 WC
+                            # cycles so the MLE optimization (numerical
+                            # gradient over 2x(#teams) params) finishes in
+                            # a reasonable time, while still being far more
+                            # current than the previous fixed 2022-11-20 cut.
 
 
 def main() -> None:
@@ -32,9 +49,10 @@ def main() -> None:
     df = pd.read_csv(matches_path)
     print(f"  {len(df):,} total matches")
 
-    # Filter to training window: all matches BEFORE WC 2022 starts
-    train = df[df["date"] < _CUTOFF_DATE].copy()
-    print(f"  {len(train):,} matches in training window (before {_CUTOFF_DATE})")
+    cutoff_date = str(df["date"].max())
+    train = df[df["date"] >= _TRAIN_START_DATE].copy()
+    print(f"  {len(train):,} matches in training window ({_TRAIN_START_DATE} to {cutoff_date}, "
+          f"decay half-life {_DECAY_HALFLIFE_DAYS} days)")
 
     # Convert to list of dicts for mle_fitter
     records = [
@@ -48,8 +66,8 @@ def main() -> None:
         for _, row in train.iterrows()
     ]
 
-    print("Fitting MLE parameters (may take 30–60 seconds) ...")
-    params = fit_team_params(records, min_matches=5, decay_halflife_days=180)
+    print("Fitting MLE parameters (may take 30-60 seconds) ...")
+    params = fit_team_params(records, min_matches=5, decay_halflife_days=_DECAY_HALFLIFE_DAYS)
     print(f"  Fitted parameters for {len(params)} teams")
 
     # Write output CSV
@@ -59,7 +77,7 @@ def main() -> None:
             "alpha_attack": round(p.alpha_attack, 6),
             "beta_defense": round(p.beta_defense, 6),
             "matches_used": p.matches_used,
-            "as_of_date": _CUTOFF_DATE,
+            "as_of_date": cutoff_date,
         }
         for p in sorted(params.values(), key=lambda x: x.team)
     ]

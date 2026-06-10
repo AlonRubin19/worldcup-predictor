@@ -1464,6 +1464,14 @@ with tab_tournament:
         st.stop()
 
     st.caption(f"Fixture file: {_tour_fixture_path.name} — {len(_tour_fixtures)} group-stage matches, 8 groups")
+    try:
+        _params_as_of = pd.read_csv(
+            Path(__file__).parent.parent.parent / "data" / "team_strength_params.csv"
+        )["as_of_date"].max()
+        st.caption(f"⚙️ MLE attack/defence params last refit: **{_params_as_of}** "
+                   f"(ELO/form snapshots are loaded fresh from match_results.csv each run)")
+    except Exception:
+        pass
 
     # ── Simulation controls ────────────────────────────────────────────────────
     col_n, col_seed = st.columns(2)
@@ -1588,6 +1596,15 @@ with tab_golden_boot:
 
     try:
         _gb_profiles = load_player_profiles()
+        _gb_teams_covered = sorted({p.team for p in _gb_profiles.values()})
+        _gb_valid_count = sum(1 for p in _gb_profiles.values() if p.research_valid)
+        st.caption(
+            f"📋 Player data source: {len(_gb_teams_covered)} of 48 WC2026 teams covered "
+            f"({', '.join(_gb_teams_covered)}). "
+            f"{_gb_valid_count}/{len(_gb_profiles)} player rows are research-valid "
+            f"(live API-Football season statistics); the rest are placeholder/manual estimates. "
+            f"Lineup source: 2022 World Cup placeholder data (not WC2026)."
+        )
     except FileNotFoundError as e:
         _gb_profiles = {}
         st.error(f"Player profile data unavailable: {e}")
@@ -1646,6 +1663,11 @@ with tab_golden_boot:
                 "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
                 "P(5+ goals)": f"{r.prob_score_5plus:.1%}",
                 "P(7+ goals)": f"{r.prob_score_7plus:.1%}",
+                "Data Validity": (
+                    "✅ Research-valid"
+                    if _gb_profiles.get(r.player_id, None) and _gb_profiles[r.player_id].research_valid
+                    else "⚠️ Engineering estimate only — not research-valid"
+                ),
             })
         st.dataframe(pd.DataFrame(gb_rows), use_container_width=True, hide_index=True)
 
