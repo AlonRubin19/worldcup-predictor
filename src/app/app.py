@@ -33,7 +33,9 @@ from src.app.components.daily_match_board import (
     MatchPrediction, filter_fixtures_by_date, sort_matches_by_datetime,
     build_daily_match_rows, format_board_row_as_dict,
 )
-from src.tournament.simulator import run_monte_carlo
+from src.tournament.simulator import run_monte_carlo, MonteCarloResult
+from src.data.player_loader import load_player_profiles
+from src.models.golden_boot import predict_golden_boot, GoldenBootPlayerResult
 from src.tournament.fixtures import load_fixtures
 from src.data.fixture_provider import FixtureSource, get_fixtures as _get_fixtures
 from src.app.selected_fixture import (
@@ -105,11 +107,12 @@ if _global_refresh:
     st.session_state["last_refresh"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     st.session_state["provider_result"] = None   # force re-fetch
 
-tab_overview, tab_predictor, tab_board, tab_tournament, tab_status, tab_backtest, tab_market = st.tabs([
+tab_overview, tab_predictor, tab_board, tab_tournament, tab_golden_boot, tab_status, tab_backtest, tab_market = st.tabs([
     "🏠 Tournament Overview",
     "⚽ Match Analyzer",
     "📅 Daily Match Board",
     "🏆 Tournament Simulator",
+    "🏅 Golden Boot",
     "📡 Data Status",
     "📊 Backtesting",
     "📈 Market Intelligence",
@@ -1565,3 +1568,159 @@ with tab_tournament:
             "Results are based on the same calibrated model used in the Match Predictor tab."
         )
 
+
+
+with tab_golden_boot:
+    st.markdown(
+        "Project the **Golden Boot** (top tournament scorer) using each player's "
+        "expected goals across the tournament (xGT), driven by the tournament "
+        "simulation's expected number of matches per team."
+    )
+    st.caption(
+        "xGT = Expected Team Matches x (Expected Minutes / 90) x xG per 90 "
+        "x Penalty Factor x Starting Probability"
+    )
+    st.warning(
+        "**Engineering validation only** — player data is currently placeholder "
+        "(`data/player_profiles.csv`, 8 teams). The architecture is built so "
+        "API-Football player statistics can replace this data without code changes."
+    )
+
+    try:
+        _gb_profiles = load_player_profiles()
+    except FileNotFoundError as e:
+        _gb_profiles = {}
+        st.error(f"Player profile data unavailable: {e}")
+
+    _gb_fixture_path = Path(__file__).parent.parent.parent / "data" / "world_cup_fixture_sample.csv"
+
+    gb_n_sims = st.slider(
+        "Monte Carlo simulations (top-scorer probability)",
+        min_value=1_000, max_value=20_000, value=5_000, step=1_000,
+        key="gb_n_sims",
+        help="More simulations = smoother top-scorer probabilities.",
+    )
+
+    if st.button("Run Golden Boot Projection", type="primary", key="gb_run"):
+        with st.spinner("Simulating tournament and projecting Golden Boot..."):
+            try:
+                _gb_snaps = load_team_snapshots()
+                _gb_params = load_strength_params()
+                _gb_mc = run_monte_carlo(
+                    _gb_fixture_path, _gb_snaps, _gb_params,
+                    n=1_000, rng_seed=42,
+                )
+            except FileNotFoundError as e:
+                _gb_mc = None
+                st.error(f"Tournament data unavailable: {e}")
+
+            if _gb_mc is not None and _gb_profiles:
+                _gb_results = predict_golden_boot(
+                    _gb_profiles, _gb_mc, n_sims=gb_n_sims, rng_seed=42,
+                )
+                st.session_state["golden_boot_results"] = _gb_results
+            elif not _gb_profiles:
+                st.session_state["golden_boot_results"] = []
+
+    _gb_results: list[GoldenBootPlayerResult] = st.session_state.get("golden_boot_results")
+
+    if _gb_results is None:
+        st.markdown(
+            "Click **Run Golden Boot Projection** to generate the table, "
+            "favourites, and dark-horse projections below."
+        )
+    elif not _gb_results:
+        st.info("No player profile data available for Golden Boot projections.")
+    else:
+        # ── 1. Top 25 Golden Boot table ────────────────────────────────────
+        st.subheader("🏅 Top 25 Golden Boot Table")
+        top25 = _gb_results[:25]
+        gb_rows = []
+        for i, r in enumerate(top25, start=1):
+            gb_rows.append({
+                "Rank": i,
+                "Player": r.player_name,
+                "Team": r.team,
+                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
+                "P(5+ goals)": f"{r.prob_score_5plus:.1%}",
+                "P(7+ goals)": f"{r.prob_score_7plus:.1%}",
+            })
+        st.dataframe(pd.DataFrame(gb_rows), use_container_width=True, hide_index=True)
+
+        # ── 2. Team-by-team scorer projections ─────────────────────────────
+        st.subheader("📋 Team-by-Team Scorer Projections")
+        gb_teams = sorted({r.team for r in _gb_results})
+        gb_team_choice = st.selectbox("Select team", gb_teams, key="gb_team_select")
+        team_rows = [
+            {
+                "Player": r.player_name,
+                "Position": r.position,
+                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
+                "P(5+ goals)": f"{r.prob_score_5plus:.1%}",
+                "P(7+ goals)": f"{r.prob_score_7plus:.1%}",
+                "Most Likely Goals": r.most_likely_goals,
+            }
+            for r in _gb_results if r.team == gb_team_choice
+        ]
+        st.dataframe(pd.DataFrame(team_rows), use_container_width=True, hide_index=True)
+
+        # ── 3. Golden Boot favourites cards ─────────────────────────────────
+        st.subheader("⭐ Golden Boot Favourites")
+        favourites = _gb_results[:5]
+        fav_cols = st.columns(len(favourites)) if favourites else []
+        for col, r in zip(fav_cols, favourites):
+            with col:
+                st.metric(
+                    label=f"{r.player_name} ({r.team})",
+                    value=f"{r.expected_goals:.2f} xG",
+                    delta=f"{r.prob_top_scorer:.1%} top scorer",
+                )
+
+        # ── 4. Dark horse section ────────────────────────────────────────────
+        st.subheader("🐎 Dark Horses")
+        st.caption(
+            "Players with modest expected goals but a non-trivial chance of a "
+            "breakout (3+ goal) tournament."
+        )
+        dark_horses = [
+            r for r in _gb_results
+            if r.expected_goals < 2.0 and r.prob_score_3plus >= 0.05
+        ]
+        dark_horses.sort(key=lambda r: -r.prob_score_3plus)
+        if dark_horses:
+            dh_rows = [
+                {
+                    "Player": r.player_name,
+                    "Team": r.team,
+                    "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                    "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
+                    "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                }
+                for r in dark_horses[:10]
+            ]
+            st.dataframe(pd.DataFrame(dh_rows), use_container_width=True, hide_index=True)
+        else:
+            st.markdown("No dark-horse candidates found under current thresholds.")
+
+        # ── 5. Most likely final goals total per player ────────────────────
+        st.subheader("🎯 Most Likely Final Goals Total")
+        mlg_rows = [
+            {
+                "Player": r.player_name,
+                "Team": r.team,
+                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                "Most Likely Goals": r.most_likely_goals,
+            }
+            for r in _gb_results[:25]
+        ]
+        st.dataframe(pd.DataFrame(mlg_rows), use_container_width=True, hide_index=True)
+
+        st.caption(
+            "Engineering validation only — based on placeholder player data for "
+            f"{len(set(r.team for r in _gb_results))} teams. "
+            "Model NOT modified; this tab is additive only."
+        )
