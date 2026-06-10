@@ -1,0 +1,73 @@
+match_id,stage,group,date,team_a,team_b
+1,group,A,2026-06-11,Mexico,South Africa
+2,group,A,2026-06-12,South Korea,Czech Republic
+3,group,B,2026-06-12,Canada,Bosnia and Herzegovina
+4,group,D,2026-06-13,USA,Paraguay
+5,group,B,2026-06-13,Qatar,Switzerland
+6,group,C,2026-06-13,Brazil,Morocco
+7,group,C,2026-06-14,Haiti,Scotland
+8,group,D,2026-06-14,Australia,Turkey
+9,group,E,2026-06-14,Germany,Curaçao
+10,group,F,2026-06-14,Netherlands,Japan
+11,group,E,2026-06-14,Ivory Coast,Ecuador
+12,group,F,2026-06-15,Sweden,Tunisia
+13,group,H,2026-06-15,Spain,Cape Verde
+14,group,G,2026-06-15,Belgium,Egypt
+15,group,H,2026-06-15,Saudi Arabia,Uruguay
+16,group,G,2026-06-16,Iran,New Zealand
+17,group,I,2026-06-16,France,Senegal
+18,group,I,2026-06-16,Iraq,Norway
+19,group,J,2026-06-17,Argentina,Algeria
+20,group,J,2026-06-17,Austria,Jordan
+21,group,K,2026-06-17,Portugal,DR Congo
+22,group,L,2026-06-17,England,Croatia
+23,group,L,2026-06-17,Ghana,Panama
+24,group,K,2026-06-18,Uzbekistan,Colombia
+25,group,A,2026-06-18,Czech Republic,South Africa
+26,group,B,2026-06-18,Switzerland,Bosnia and Herzegovina
+27,group,B,2026-06-18,Canada,Qatar
+28,group,A,2026-06-19,Mexico,South Korea
+29,group,D,2026-06-19,USA,Australia
+30,group,C,2026-06-19,Scotland,Morocco
+31,group,C,2026-06-20,Brazil,Haiti
+32,group,D,2026-06-20,Turkey,Paraguay
+33,group,F,2026-06-20,Netherlands,Sweden
+34,group,E,2026-06-20,Germany,Ivory Coast
+35,group,E,2026-06-21,Ecuador,Curaçao
+36,group,F,2026-06-21,Tunisia,Japan
+37,group,H,2026-06-21,Spain,Saudi Arabia
+38,group,G,2026-06-21,Belgium,Iran
+39,group,H,2026-06-21,Uruguay,Cape Verde
+40,group,G,2026-06-22,New Zealand,Egypt
+41,group,J,2026-06-22,Argentina,Austria
+42,group,I,2026-06-22,France,Iraq
+43,group,I,2026-06-23,Norway,Senegal
+44,group,J,2026-06-23,Jordan,Algeria
+45,group,K,2026-06-23,Portugal,Uzbekistan
+46,group,L,2026-06-23,England,Ghana
+47,group,L,2026-06-23,Panama,Croatia
+48,group,K,2026-06-24,Colombia,DR Congo
+49,group,B,2026-06-24,Bosnia and Herzegovina,Qatar
+50,group,B,2026-06-24,Switzerland,Canada
+51,group,C,2026-06-24,Scotland,Brazil
+52,group,C,2026-06-24,Morocco,Haiti
+53,group,A,2026-06-25,South Africa,South Korea
+54,group,A,2026-06-25,Czech Republic,Mexico
+55,group,E,2026-06-25,Curaçao,Ivory Coast
+56,group,E,2026-06-25,Ecuador,Germany
+57,group,F,2026-06-25,Tunisia,Netherlands
+58,group,F,2026-06-25,Japan,Sweden
+59,group,D,2026-06-26,Paraguay,Australia
+60,group,D,2026-06-26,Turkey,USA
+61,group,I,2026-06-26,Norway,France
+62,group,I,2026-06-26,Senegal,Iraq
+63,group,H,2026-06-27,Uruguay,Spain
+64,group,H,2026-06-27,Cape Verde,Saudi Arabia
+65,group,G,2026-06-27,New Zealand,Belgium
+66,group,G,2026-06-27,Egypt,Iran
+67,group,L,2026-06-27,Croatia,Ghana
+68,group,L,2026-06-27,Panama,England
+69,group,K,2026-06-27,Colombia,Portugal
+70,group,K,2026-06-27,DR Congo,Uzbekistan
+71,group,J,2026-06-28,Jordan,Argentina
+72,group,J,2026-06-28,Algeria,Austria

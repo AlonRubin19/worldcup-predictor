@@ -37,6 +37,7 @@ _NAME_MAP = {
     "ir iran": "iran",
     "usa": "usa",
     "united states": "usa",
+    "czechia": "czech republic",
 }
 
 
