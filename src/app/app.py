@@ -1769,7 +1769,7 @@ with tab_tournament:
                 calibration=calib_params,
             )
         st.session_state["mc_result"] = mc
-        st.session_state["mc_run_at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        st.session_state["mc_run_at"] = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     mc = st.session_state.get("mc_result")
     if mc is not None:
