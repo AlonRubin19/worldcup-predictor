@@ -25,6 +25,7 @@ from src.explainability.driver import build_explanation, ExplanationInput, Predi
 from src.app.components.prediction_cards import compute_confidence, ConfidenceResult
 from src.models.strength_adjusted_xg import calculate_strength_adjusted_xg
 from src.models.xg_calibration import calibrate_xg
+from src.models.market_blend import blend_probabilities, BlendedProbabilities
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -52,6 +53,10 @@ class RunnerInput:
     is_research_valid: bool       = True
     lineup_source:     str        = "Manual (placeholder)"
     data_warnings:     list[str]  = field(default_factory=list)
+    market_win_a:           float | None = None
+    market_draw:            float | None = None
+    market_win_b:           float | None = None
+    market_research_valid:  bool         = False
 
 
 @dataclass
@@ -86,6 +91,8 @@ class FullPrediction:
     is_research_valid: bool
     lineup_source:     str
     model_label:       str = "ELO + MLE + Dixon-Coles (rho=-0.30)"
+    # Market blend (1X2 only -- scoreline matrix is unaffected)
+    blend:             BlendedProbabilities | None = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -169,6 +176,12 @@ def run_full_prediction(inp: RunnerInput) -> FullPrediction:
     )
     explanation = build_explanation(expl_inp)
 
+    blend = blend_probabilities(
+        model_win_a=result.win_a, model_draw=result.draw, model_win_b=result.win_b,
+        market_win_a=inp.market_win_a, market_draw=inp.market_draw, market_win_b=inp.market_win_b,
+        market_research_valid=inp.market_research_valid,
+    )
+
     return FullPrediction(
         team_a=inp.team_a,
         team_b=inp.team_b,
@@ -185,4 +198,5 @@ def run_full_prediction(inp: RunnerInput) -> FullPrediction:
         explanation=explanation,
         is_research_valid=inp.is_research_valid,
         lineup_source=inp.lineup_source,
+        blend=blend,
     )
