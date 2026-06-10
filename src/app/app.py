@@ -141,15 +141,15 @@ if st.session_state.get("refresh_summary"):
             width="stretch",
         )
 
-tab_overview, tab_predictor, tab_board, tab_tournament, tab_golden_boot, tab_status, tab_backtest, tab_market = st.tabs([
-    "🏠 Tournament Overview",
+tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, tab_overview, tab_board = st.tabs([
+    "🏠 Home",
     "⚽ Match Analyzer",
-    "📅 Daily Match Board",
-    "🏆 Tournament Simulator",
+    "🏆 Tournament",
     "🏅 Golden Boot",
     "📡 Data Status",
-    "📊 Backtesting",
-    "📈 Market Intelligence",
+    "🧪 Model Lab",
+    "📋 All Fixtures",
+    "📅 Daily Match Board",
 ])
 
 # ── Shared helpers imported once ──────────────────────────────────────────────
@@ -233,7 +233,97 @@ def _source_badge(prov) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 0 — TOURNAMENT OVERVIEW
+# TAB 0 — HOME (prediction-first landing page)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_home:
+    _home_prov = _load_provider()
+    _home_all = _home_prov.fixtures
+
+    if not _home_all:
+        st.error("No fixtures available. Click 🔄 Refresh or check API key.")
+        st.stop()
+
+    _home_snaps, _home_params, _home_rv = _load_board_model_data()
+
+    # ── Today's Matches ────────────────────────────────────────────────────────
+    st.subheader("📅 Today's Matches")
+    _home_today = _dt.date.today().isoformat()
+    _home_today_fix = sort_matches_by_datetime(filter_fixtures_by_date(_home_all, _home_today))
+
+    if not _home_today_fix:
+        st.info("No matches scheduled today. See **Upcoming Matches** below.")
+    else:
+        for _hf in _home_today_fix:
+            _hpred, _, _ = _build_match_prediction(_hf, _home_snaps, _home_params, _home_rv)
+            _conf_emoji = {"High": "🟢", "Medium": "🟡", "Low": "🔴"}.get(_hpred.confidence_label, "⚪")
+            with st.container(border=True):
+                _hc1, _hc2, _hc3 = st.columns([3, 2, 1])
+                with _hc1:
+                    st.markdown(f"**{_hf.team_a} vs {_hf.team_b}**")
+                    st.caption(f"{_hf.date}  •  {_hf.stage.replace('_', ' ').title()}")
+                    if _hpred.win_a >= _hpred.win_b and _hpred.win_a >= _hpred.draw:
+                        _winner_str = f"Prediction: **{_hf.team_a} Win** ({_hpred.win_a:.0%})"
+                    elif _hpred.win_b >= _hpred.draw:
+                        _winner_str = f"Prediction: **{_hf.team_b} Win** ({_hpred.win_b:.0%})"
+                    else:
+                        _winner_str = f"Prediction: **Draw** ({_hpred.draw:.0%})"
+                    st.markdown(_winner_str)
+                with _hc2:
+                    st.metric("Most Likely", _hpred.most_likely_score)
+                    st.markdown(f"{_conf_emoji} Confidence: **{_hpred.confidence_label}**")
+                with _hc3:
+                    if _hpred.top_signal != "—":
+                        st.markdown(f"`{_hpred.top_signal}`")
+                    if st.button("Analyze →", key=f"home_analyze_{_hf.match_id}"):
+                        _send_to_analyzer(_hf, _home_prov)
+
+    # ── Upcoming Matches ───────────────────────────────────────────────────────
+    _home_next = get_next_fixtures(_home_all, n=5, today=_home_today)
+    if _home_next:
+        with st.expander(f"⏱️ Upcoming Matches (next {len(_home_next)})", expanded=False):
+            for _nf in _home_next:
+                _nfc1, _nfc2, _nfc3 = st.columns([3, 1, 1])
+                with _nfc1:
+                    st.markdown(f"**{_nf.team_a}** vs **{_nf.team_b}**  "
+                                f"— {_nf.date}  •  {_nf.stage.replace('_', ' ').title()}")
+                with _nfc2:
+                    st.caption(get_status_label(_nf.status))
+                with _nfc3:
+                    if st.button("Analyze →", key=f"home_upcoming_{_nf.match_id}"):
+                        _send_to_analyzer(_nf, _home_prov)
+
+    # ── Tournament Snapshot ────────────────────────────────────────────────────
+    st.subheader("🏆 Tournament Snapshot")
+    _snap_mc = st.session_state.get("mc_result")
+    _snap_gb = st.session_state.get("golden_boot_results")
+
+    _snap_c1, _snap_c2, _snap_c3 = st.columns(3)
+    with _snap_c1:
+        if _snap_mc and _snap_mc.win_tournament:
+            _fav_team, _fav_p = max(_snap_mc.win_tournament.items(), key=lambda kv: kv[1])
+            st.metric("Winner Favourite", _fav_team, f"{_fav_p:.0%}")
+        else:
+            st.metric("Winner Favourite", "—")
+            st.caption("Run the Tournament simulator to populate.")
+    with _snap_c2:
+        if _snap_gb:
+            _gb_fav = _snap_gb[0]
+            st.metric("Golden Boot Favourite", _gb_fav.player_name, f"{_gb_fav.prob_top_scorer:.0%}")
+        else:
+            st.metric("Golden Boot Favourite", "—")
+            st.caption("Run the Golden Boot projection to populate.")
+    with _snap_c3:
+        st.metric("Matches Loaded", str(_home_prov.fixture_count))
+        st.caption(_source_badge(_home_prov))
+
+    st.markdown("---")
+    with st.expander("📋 Browse all fixtures", expanded=False):
+        st.caption("Looking for the full fixture table and filters? See **All Fixtures** and "
+                   "**Daily Match Board** tabs for the complete browsing experience.")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB — ALL FIXTURES (full table, filters, inline analysis)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_overview:
     st.markdown(
@@ -1178,301 +1268,295 @@ with tab_predictor:
     st.markdown("---")
     st.subheader("Key Reasons")
     render_explanation_panel(_expl, is_research_valid=is_research_valid and not _all_warnings)
+with tab_lab:
+    st.markdown("Advanced analytics: backtesting, market intelligence, and model calibration.")
+    _lab_bt, _lab_mkt = st.tabs(["📊 Backtesting", "📈 Market Intelligence"])
+    with _lab_bt:
+        st.markdown("This tab shows two separate backtests with clearly different data provenance.")
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — BACKTESTING
-# ══════════════════════════════════════════════════════════════════════════════
-with tab_backtest:
-    st.markdown("This tab shows two separate backtests with clearly different data provenance.")
-
-    bt_results_po = None
-    bt_results_dc = None
-    bt_metrics_po = None
-    bt_metrics_dc = None
-    rho_tuning_results = None
-    best_rho_result = None
-    try:
-        bt_results_po = run_backtest(ratings=all_ratings, model_type="poisson")
-        bt_metrics_po = compute_metrics(bt_results_po)
-        bt_results_dc = run_backtest(ratings=all_ratings, model_type="dixon_coles")
-        bt_metrics_dc = compute_metrics(bt_results_dc)
-        rho_tuning_results = tune_rho(all_ratings)
-        best_rho_result = select_best_rho(rho_tuning_results)
-    except Exception as e:
-        st.error(f"Backtesting failed: {e}")
-
-    if bt_metrics_po is not None and bt_metrics_dc is not None:
-        # ── Illustrative label ────────────────────────────────────────────────
-        st.warning(
-            "⚠️ **Illustrative Backtest** — uses `team_ratings.csv` (manually estimated by AI). "
-            "Ratings were assigned with knowledge of WC 2022 outcomes. "
-            "Results are for **engineering validation only**, not accuracy measurement."
-        )
-
-        # ── Model comparison ──────────────────────────────────────────────────
-        st.subheader("Model Comparison")
-
-        comparison_data = {
-            "Metric": [
-                "Total Matches Tested",
-                "1X2 Accuracy",
-                "Exact Score Accuracy",
-                "Top 3 Scoreline Hit Rate",
-                "Top 5 Scoreline Hit Rate",
-                "Brier Score (lower = better)",
-                "Avg Probability of Actual Result",
-            ],
-            "Poisson": [
-                str(bt_metrics_po.total_matches),
-                f"{bt_metrics_po.accuracy_1x2:.1%}",
-                f"{bt_metrics_po.exact_score_accuracy:.1%}",
-                f"{bt_metrics_po.top_3_hit_rate:.1%}",
-                f"{bt_metrics_po.top_5_hit_rate:.1%}",
-                f"{bt_metrics_po.brier_score:.4f}",
-                f"{bt_metrics_po.avg_prob_actual_result:.1%}",
-            ],
-            "Dixon-Coles": [
-                str(bt_metrics_dc.total_matches),
-                f"{bt_metrics_dc.accuracy_1x2:.1%}",
-                f"{bt_metrics_dc.exact_score_accuracy:.1%}",
-                f"{bt_metrics_dc.top_3_hit_rate:.1%}",
-                f"{bt_metrics_dc.top_5_hit_rate:.1%}",
-                f"{bt_metrics_dc.brier_score:.4f}",
-                f"{bt_metrics_dc.avg_prob_actual_result:.1%}",
-            ],
-        }
-        st.table(pd.DataFrame(comparison_data))
-
-        # ── Per-match results (Poisson as reference) ──────────────────────────
-        st.subheader("Match-Level Results (Poisson)")
-
-        outcome_labels = {
-            "team_a_win": "Team A Win",
-            "draw": "Draw",
-            "team_b_win": "Team B Win",
-        }
-
-        rows = []
-        for r in bt_results_po:
-            rows.append({
-                "Date": r.date,
-                "Match": f"{r.team_a} vs {r.team_b}",
-                "Actual Score": f"{r.actual_goals_a}-{r.actual_goals_b}",
-                "Predicted": outcome_labels[r.predicted_outcome],
-                "Actual": outcome_labels[r.actual_outcome],
-                "Correct": "✓" if r.predicted_outcome == r.actual_outcome else "✗",
-                "In Top 5": "✓" if r.in_top_5 else "✗",
-                "P(actual)": f"{r.prob_of_actual_result:.1%}",
-            })
-
-        st.dataframe(pd.DataFrame(rows), use_container_width=True)
-
-        # ── Rho Tuning ────────────────────────────────────────────────────────
-        if rho_tuning_results is not None and best_rho_result is not None:
-            st.markdown("---")
-            st.subheader("Rho Tuning — Dixon-Coles Parameter Search")
-
-            rho_rows = []
-            for r in rho_tuning_results:
-                rho_rows.append({
-                    "rho": f"{r.rho:.2f}",
-                    "1X2 Acc": f"{r.accuracy_1x2:.1%}",
-                    "Exact": f"{r.exact_score_accuracy:.1%}",
-                    "Top 3": f"{r.top_3_hit_rate:.1%}",
-                    "Top 5": f"{r.top_5_hit_rate:.1%}",
-                    "Brier": f"{r.brier_score:.4f}",
-                    "Avg P": f"{r.avg_prob_actual_result:.1%}",
-                })
-            st.table(pd.DataFrame(rho_rows))
-
-            st.caption(f"**Best rho:** {best_rho_result.rho:.2f} "
-                       f"(Brier: {best_rho_result.brier_score:.4f}, "
-                       f"Top 3: {best_rho_result.top_3_hit_rate:.1%})")
-
-            # Recommend DC with best rho only if it beats Poisson by meaningful margin.
-            poisson_brier = bt_metrics_po.brier_score
-            if best_rho_result.brier_score < poisson_brier - 0.001:
-                st.success(
-                    f"Recommendation: **Dixon-Coles (rho={best_rho_result.rho:.2f})** — "
-                    f"Brier {best_rho_result.brier_score:.4f} vs Poisson {poisson_brier:.4f} "
-                    f"({poisson_brier - best_rho_result.brier_score:.4f} improvement)"
-                )
-            else:
-                st.info(
-                    f"Recommendation: **Poisson (default)** — "
-                    f"Dixon-Coles best rho={best_rho_result.rho:.2f} does not improve "
-                    f"Brier score by more than 0.001 "
-                    f"(DC: {best_rho_result.brier_score:.4f}, Poisson: {poisson_brier:.4f})"
-                )
-
-        # ══ Valid Pre-Match Backtest ═══════════════════════════════════════════
-        st.markdown("---")
-        st.subheader("Valid Pre-Match Backtest")
-        st.info(
-            "📐 **Data provenance:** xG calculated from pre-match statistics only "
-            "(goals averages, form, ELO). No manually estimated ratings used.\n\n"
-            "⚠️ **PLACEHOLDER DATA:** `pre_match_team_stats.csv` contains sample values, "
-            "not real historical records. See `docs/valid_backtest_status.md`."
-        )
-
-        valid_results_po = None
-        valid_metrics_po = None
-        valid_rho_results = None
-        valid_best_rho = None
+        bt_results_po = None
+        bt_results_dc = None
+        bt_metrics_po = None
+        bt_metrics_dc = None
+        rho_tuning_results = None
+        best_rho_result = None
         try:
-            valid_results_po = run_valid_backtest(model_type="poisson")
-            valid_metrics_po = compute_metrics(valid_results_po)
-
-            valid_rho_results = []
-            for rho_val in DEFAULT_RHO_GRID:
-                dc_results = run_valid_backtest(model_type="dixon_coles", rho=rho_val)
-                m_v = compute_metrics(dc_results)
-                valid_rho_results.append(RhoResult(
-                    rho=rho_val,
-                    accuracy_1x2=m_v.accuracy_1x2,
-                    exact_score_accuracy=m_v.exact_score_accuracy,
-                    top_3_hit_rate=m_v.top_3_hit_rate,
-                    top_5_hit_rate=m_v.top_5_hit_rate,
-                    brier_score=m_v.brier_score,
-                    avg_prob_actual_result=m_v.avg_prob_actual_result,
-                ))
-            valid_best_rho = select_best_rho(valid_rho_results)
+            bt_results_po = run_backtest(ratings=all_ratings, model_type="poisson")
+            bt_metrics_po = compute_metrics(bt_results_po)
+            bt_results_dc = run_backtest(ratings=all_ratings, model_type="dixon_coles")
+            bt_metrics_dc = compute_metrics(bt_results_dc)
+            rho_tuning_results = tune_rho(all_ratings)
+            best_rho_result = select_best_rho(rho_tuning_results)
         except Exception as e:
-            st.error(f"Valid backtest failed: {e}")
+            st.error(f"Backtesting failed: {e}")
 
-        if valid_metrics_po is not None:
-            valid_metrics_data = {
-                "Metric": [
-                    "Total Matches Tested", "1X2 Accuracy", "Exact Score Accuracy",
-                    "Top 3 Hit Rate", "Top 5 Hit Rate",
-                    "Brier Score (lower = better)", "Avg P(Actual Result)",
-                ],
-                "Poisson (pre-match xG)": [
-                    str(valid_metrics_po.total_matches),
-                    f"{valid_metrics_po.accuracy_1x2:.1%}",
-                    f"{valid_metrics_po.exact_score_accuracy:.1%}",
-                    f"{valid_metrics_po.top_3_hit_rate:.1%}",
-                    f"{valid_metrics_po.top_5_hit_rate:.1%}",
-                    f"{valid_metrics_po.brier_score:.4f}",
-                    f"{valid_metrics_po.avg_prob_actual_result:.1%}",
-                ],
-            }
-            st.table(pd.DataFrame(valid_metrics_data))
-
-        if valid_rho_results and valid_best_rho:
-            st.markdown("**Dixon-Coles rho grid (valid path):**")
-            valid_rho_rows = [{
-                "rho": f"{r.rho:.2f}", "1X2": f"{r.accuracy_1x2:.1%}",
-                "Exact": f"{r.exact_score_accuracy:.1%}", "Top3": f"{r.top_3_hit_rate:.1%}",
-                "Brier": f"{r.brier_score:.4f}",
-            } for r in valid_rho_results]
-            st.table(pd.DataFrame(valid_rho_rows))
-            st.caption(f"Best rho (valid path): {valid_best_rho.rho:.2f} "
-                       f"(Brier: {valid_best_rho.brier_score:.4f})")
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — MARKET INTELLIGENCE
-# ══════════════════════════════════════════════════════════════════════════════
-with tab_market:
-    st.markdown(
-        "Compare model predictions against bookmaker market odds. "
-        "Market odds are used for **comparison and calibration only** — "
-        "they do not change predictions."
-    )
-
-    st.warning(
-        "⚠️ **Market Intelligence is currently engineering-valid only until sourced odds are loaded.**\n\n"
-        "Current data: `data/market_odds.csv` contains **placeholder odds**, not real bookmaker data. "
-        "Results below are for pipeline validation only. "
-        "Replace with football-data.co.uk or The Odds API data before drawing conclusions."
-    )
-
-    try:
-        market_results, market_summary = run_market_comparison()
-    except Exception as e:
-        st.error(f"Market comparison failed: {e}")
-        market_results, market_summary = [], None
-
-    if market_summary and market_results:
-        # ── Summary metrics ────────────────────────────────────────────────
-        st.subheader("Summary Metrics")
-
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
-            st.metric("Matched Games", market_summary.total_matches)
-        with col_b:
-            st.metric("Model Brier", f"{market_summary.model_brier:.4f}")
-        with col_c:
-            st.metric("Market Brier", f"{market_summary.market_brier:.4f}",
-                      delta=f"{market_summary.brier_delta:+.4f}",
-                      delta_color="inverse")
-
-        col_d, col_e = st.columns(2)
-        with col_d:
-            st.metric("Avg Absolute Divergence", f"{market_summary.avg_absolute_divergence:.1%}")
-        with col_e:
-            st.metric("High-Divergence Matches (>5pp)", market_summary.high_divergence_count)
-
-        st.caption(
-            "Brier delta = market Brier - model Brier. "
-            "Positive = model has lower Brier (better calibrated). "
-            "**Not meaningful with placeholder data.**"
-        )
-
-        # ── Model vs market comparison table ──────────────────────────────
-        st.subheader("Model vs Market Comparison")
-
-        comparison_rows = []
-        outcome_labels = {"team_a_win": "Home Win", "draw": "Draw", "team_b_win": "Away Win"}
-        for r in market_results:
-            comparison_rows.append({
-                "Date": r.date,
-                "Match": f"{r.team_a} vs {r.team_b}",
-                "Actual": outcome_labels[r.actual_outcome],
-                "Model H/D/A": f"{r.model_win_a:.2f} / {r.model_draw:.2f} / {r.model_win_b:.2f}",
-                "Market H/D/A": f"{r.market_home:.2f} / {r.market_draw:.2f} / {r.market_away:.2f}",
-                "Overround": f"{r.market_overround:.1%}",
-                "Closer": "Model" if r.model_closer_than_market else "Market",
-                "Bkm src": r.market_source_type,
-            })
-
-        st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True)
-
-        # ── Divergence table ───────────────────────────────────────────────
-        st.subheader("Divergence Table (model - market)")
-        st.caption(
-            "Positive divergence = model assigns more probability than market. "
-            "Negative = model assigns less. Signed, not absolute."
-        )
-
-        div_rows = []
-        for r in market_results:
-            flag = "YES" if abs(r.largest_divergence_value) >= 0.05 else ""
-            div_rows.append({
-                "Match": f"{r.team_a} vs {r.team_b}",
-                "d(Home)": f"{r.home_divergence:+.3f}",
-                "d(Draw)": f"{r.draw_divergence:+.3f}",
-                "d(Away)": f"{r.away_divergence:+.3f}",
-                "Largest div outcome": r.largest_divergence_outcome.replace("_", " "),
-                "Div value": f"{r.largest_divergence_value:+.3f}",
-                ">5pp": flag,
-            })
-
-        st.dataframe(pd.DataFrame(div_rows), use_container_width=True)
-
-        if market_summary.high_divergence_count > 0:
-            st.markdown(
-                f"**{market_summary.high_divergence_count} match(es)** where model and market "
-                f"disagree by >5 percentage points on at least one outcome. "
-                f"On those matches: model was closer in "
-                f"**{market_summary.model_wins_high_divergence}**, "
-                f"market was closer in "
-                f"**{market_summary.market_wins_high_divergence}**."
+        if bt_metrics_po is not None and bt_metrics_dc is not None:
+            # ── Illustrative label ────────────────────────────────────────────────
+            st.warning(
+                "⚠️ **Illustrative Backtest** — uses `team_ratings.csv` (manually estimated by AI). "
+                "Ratings were assigned with knowledge of WC 2022 outcomes. "
+                "Results are for **engineering validation only**, not accuracy measurement."
             )
 
-# ══════════════════════════════════════════════════════════════════════════════
+            # ── Model comparison ──────────────────────────────────────────────────
+            st.subheader("Model Comparison")
+
+            comparison_data = {
+                "Metric": [
+                    "Total Matches Tested",
+                    "1X2 Accuracy",
+                    "Exact Score Accuracy",
+                    "Top 3 Scoreline Hit Rate",
+                    "Top 5 Scoreline Hit Rate",
+                    "Brier Score (lower = better)",
+                    "Avg Probability of Actual Result",
+                ],
+                "Poisson": [
+                    str(bt_metrics_po.total_matches),
+                    f"{bt_metrics_po.accuracy_1x2:.1%}",
+                    f"{bt_metrics_po.exact_score_accuracy:.1%}",
+                    f"{bt_metrics_po.top_3_hit_rate:.1%}",
+                    f"{bt_metrics_po.top_5_hit_rate:.1%}",
+                    f"{bt_metrics_po.brier_score:.4f}",
+                    f"{bt_metrics_po.avg_prob_actual_result:.1%}",
+                ],
+                "Dixon-Coles": [
+                    str(bt_metrics_dc.total_matches),
+                    f"{bt_metrics_dc.accuracy_1x2:.1%}",
+                    f"{bt_metrics_dc.exact_score_accuracy:.1%}",
+                    f"{bt_metrics_dc.top_3_hit_rate:.1%}",
+                    f"{bt_metrics_dc.top_5_hit_rate:.1%}",
+                    f"{bt_metrics_dc.brier_score:.4f}",
+                    f"{bt_metrics_dc.avg_prob_actual_result:.1%}",
+                ],
+            }
+            st.table(pd.DataFrame(comparison_data))
+
+            # ── Per-match results (Poisson as reference) ──────────────────────────
+            st.subheader("Match-Level Results (Poisson)")
+
+            outcome_labels = {
+                "team_a_win": "Team A Win",
+                "draw": "Draw",
+                "team_b_win": "Team B Win",
+            }
+
+            rows = []
+            for r in bt_results_po:
+                rows.append({
+                    "Date": r.date,
+                    "Match": f"{r.team_a} vs {r.team_b}",
+                    "Actual Score": f"{r.actual_goals_a}-{r.actual_goals_b}",
+                    "Predicted": outcome_labels[r.predicted_outcome],
+                    "Actual": outcome_labels[r.actual_outcome],
+                    "Correct": "✓" if r.predicted_outcome == r.actual_outcome else "✗",
+                    "In Top 5": "✓" if r.in_top_5 else "✗",
+                    "P(actual)": f"{r.prob_of_actual_result:.1%}",
+                })
+
+            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+
+            # ── Rho Tuning ────────────────────────────────────────────────────────
+            if rho_tuning_results is not None and best_rho_result is not None:
+                st.markdown("---")
+                st.subheader("Rho Tuning — Dixon-Coles Parameter Search")
+
+                rho_rows = []
+                for r in rho_tuning_results:
+                    rho_rows.append({
+                        "rho": f"{r.rho:.2f}",
+                        "1X2 Acc": f"{r.accuracy_1x2:.1%}",
+                        "Exact": f"{r.exact_score_accuracy:.1%}",
+                        "Top 3": f"{r.top_3_hit_rate:.1%}",
+                        "Top 5": f"{r.top_5_hit_rate:.1%}",
+                        "Brier": f"{r.brier_score:.4f}",
+                        "Avg P": f"{r.avg_prob_actual_result:.1%}",
+                    })
+                st.table(pd.DataFrame(rho_rows))
+
+                st.caption(f"**Best rho:** {best_rho_result.rho:.2f} "
+                           f"(Brier: {best_rho_result.brier_score:.4f}, "
+                           f"Top 3: {best_rho_result.top_3_hit_rate:.1%})")
+
+                # Recommend DC with best rho only if it beats Poisson by meaningful margin.
+                poisson_brier = bt_metrics_po.brier_score
+                if best_rho_result.brier_score < poisson_brier - 0.001:
+                    st.success(
+                        f"Recommendation: **Dixon-Coles (rho={best_rho_result.rho:.2f})** — "
+                        f"Brier {best_rho_result.brier_score:.4f} vs Poisson {poisson_brier:.4f} "
+                        f"({poisson_brier - best_rho_result.brier_score:.4f} improvement)"
+                    )
+                else:
+                    st.info(
+                        f"Recommendation: **Poisson (default)** — "
+                        f"Dixon-Coles best rho={best_rho_result.rho:.2f} does not improve "
+                        f"Brier score by more than 0.001 "
+                        f"(DC: {best_rho_result.brier_score:.4f}, Poisson: {poisson_brier:.4f})"
+                    )
+
+            # ══ Valid Pre-Match Backtest ═══════════════════════════════════════════
+            st.markdown("---")
+            st.subheader("Valid Pre-Match Backtest")
+            st.info(
+                "📐 **Data provenance:** xG calculated from pre-match statistics only "
+                "(goals averages, form, ELO). No manually estimated ratings used.\n\n"
+                "⚠️ **PLACEHOLDER DATA:** `pre_match_team_stats.csv` contains sample values, "
+                "not real historical records. See `docs/valid_backtest_status.md`."
+            )
+
+            valid_results_po = None
+            valid_metrics_po = None
+            valid_rho_results = None
+            valid_best_rho = None
+            try:
+                valid_results_po = run_valid_backtest(model_type="poisson")
+                valid_metrics_po = compute_metrics(valid_results_po)
+
+                valid_rho_results = []
+                for rho_val in DEFAULT_RHO_GRID:
+                    dc_results = run_valid_backtest(model_type="dixon_coles", rho=rho_val)
+                    m_v = compute_metrics(dc_results)
+                    valid_rho_results.append(RhoResult(
+                        rho=rho_val,
+                        accuracy_1x2=m_v.accuracy_1x2,
+                        exact_score_accuracy=m_v.exact_score_accuracy,
+                        top_3_hit_rate=m_v.top_3_hit_rate,
+                        top_5_hit_rate=m_v.top_5_hit_rate,
+                        brier_score=m_v.brier_score,
+                        avg_prob_actual_result=m_v.avg_prob_actual_result,
+                    ))
+                valid_best_rho = select_best_rho(valid_rho_results)
+            except Exception as e:
+                st.error(f"Valid backtest failed: {e}")
+
+            if valid_metrics_po is not None:
+                valid_metrics_data = {
+                    "Metric": [
+                        "Total Matches Tested", "1X2 Accuracy", "Exact Score Accuracy",
+                        "Top 3 Hit Rate", "Top 5 Hit Rate",
+                        "Brier Score (lower = better)", "Avg P(Actual Result)",
+                    ],
+                    "Poisson (pre-match xG)": [
+                        str(valid_metrics_po.total_matches),
+                        f"{valid_metrics_po.accuracy_1x2:.1%}",
+                        f"{valid_metrics_po.exact_score_accuracy:.1%}",
+                        f"{valid_metrics_po.top_3_hit_rate:.1%}",
+                        f"{valid_metrics_po.top_5_hit_rate:.1%}",
+                        f"{valid_metrics_po.brier_score:.4f}",
+                        f"{valid_metrics_po.avg_prob_actual_result:.1%}",
+                    ],
+                }
+                st.table(pd.DataFrame(valid_metrics_data))
+
+            if valid_rho_results and valid_best_rho:
+                st.markdown("**Dixon-Coles rho grid (valid path):**")
+                valid_rho_rows = [{
+                    "rho": f"{r.rho:.2f}", "1X2": f"{r.accuracy_1x2:.1%}",
+                    "Exact": f"{r.exact_score_accuracy:.1%}", "Top3": f"{r.top_3_hit_rate:.1%}",
+                    "Brier": f"{r.brier_score:.4f}",
+                } for r in valid_rho_results]
+                st.table(pd.DataFrame(valid_rho_rows))
+                st.caption(f"Best rho (valid path): {valid_best_rho.rho:.2f} "
+                           f"(Brier: {valid_best_rho.brier_score:.4f})")
+    with _lab_mkt:
+        st.markdown(
+            "Compare model predictions against bookmaker market odds. "
+            "Market odds are used for **comparison and calibration only** — "
+            "they do not change predictions."
+        )
+
+        st.warning(
+            "⚠️ **Market Intelligence is currently engineering-valid only until sourced odds are loaded.**\n\n"
+            "Current data: `data/market_odds.csv` contains **placeholder odds**, not real bookmaker data. "
+            "Results below are for pipeline validation only. "
+            "Replace with football-data.co.uk or The Odds API data before drawing conclusions."
+        )
+
+        try:
+            market_results, market_summary = run_market_comparison()
+        except Exception as e:
+            st.error(f"Market comparison failed: {e}")
+            market_results, market_summary = [], None
+
+        if market_summary and market_results:
+            # ── Summary metrics ────────────────────────────────────────────────
+            st.subheader("Summary Metrics")
+
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("Matched Games", market_summary.total_matches)
+            with col_b:
+                st.metric("Model Brier", f"{market_summary.model_brier:.4f}")
+            with col_c:
+                st.metric("Market Brier", f"{market_summary.market_brier:.4f}",
+                          delta=f"{market_summary.brier_delta:+.4f}",
+                          delta_color="inverse")
+
+            col_d, col_e = st.columns(2)
+            with col_d:
+                st.metric("Avg Absolute Divergence", f"{market_summary.avg_absolute_divergence:.1%}")
+            with col_e:
+                st.metric("High-Divergence Matches (>5pp)", market_summary.high_divergence_count)
+
+            st.caption(
+                "Brier delta = market Brier - model Brier. "
+                "Positive = model has lower Brier (better calibrated). "
+                "**Not meaningful with placeholder data.**"
+            )
+
+            # ── Model vs market comparison table ──────────────────────────────
+            st.subheader("Model vs Market Comparison")
+
+            comparison_rows = []
+            outcome_labels = {"team_a_win": "Home Win", "draw": "Draw", "team_b_win": "Away Win"}
+            for r in market_results:
+                comparison_rows.append({
+                    "Date": r.date,
+                    "Match": f"{r.team_a} vs {r.team_b}",
+                    "Actual": outcome_labels[r.actual_outcome],
+                    "Model H/D/A": f"{r.model_win_a:.2f} / {r.model_draw:.2f} / {r.model_win_b:.2f}",
+                    "Market H/D/A": f"{r.market_home:.2f} / {r.market_draw:.2f} / {r.market_away:.2f}",
+                    "Overround": f"{r.market_overround:.1%}",
+                    "Closer": "Model" if r.model_closer_than_market else "Market",
+                    "Bkm src": r.market_source_type,
+                })
+
+            st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True)
+
+            # ── Divergence table ───────────────────────────────────────────────
+            st.subheader("Divergence Table (model - market)")
+            st.caption(
+                "Positive divergence = model assigns more probability than market. "
+                "Negative = model assigns less. Signed, not absolute."
+            )
+
+            div_rows = []
+            for r in market_results:
+                flag = "YES" if abs(r.largest_divergence_value) >= 0.05 else ""
+                div_rows.append({
+                    "Match": f"{r.team_a} vs {r.team_b}",
+                    "d(Home)": f"{r.home_divergence:+.3f}",
+                    "d(Draw)": f"{r.draw_divergence:+.3f}",
+                    "d(Away)": f"{r.away_divergence:+.3f}",
+                    "Largest div outcome": r.largest_divergence_outcome.replace("_", " "),
+                    "Div value": f"{r.largest_divergence_value:+.3f}",
+                    ">5pp": flag,
+                })
+
+            st.dataframe(pd.DataFrame(div_rows), use_container_width=True)
+
+            if market_summary.high_divergence_count > 0:
+                st.markdown(
+                    f"**{market_summary.high_divergence_count} match(es)** where model and market "
+                    f"disagree by >5 percentage points on at least one outcome. "
+                    f"On those matches: model was closer in "
+                    f"**{market_summary.model_wins_high_divergence}**, "
+                    f"market was closer in "
+                    f"**{market_summary.market_wins_high_divergence}**."
+                )
+
+    # ══════════════════════════════════════════════════════════════════════════════
+
 # TAB 4 — TOURNAMENT SIMULATOR
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_tournament:
@@ -1563,7 +1647,14 @@ with tab_tournament:
                 n=n_sims, rng_seed=rng_seed_val,
                 calibration=calib_params,
             )
+        st.session_state["mc_result"] = mc
+        st.session_state["mc_run_at"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
+    mc = st.session_state.get("mc_result")
+    if mc is not None:
+        st.caption(f"Showing results from last run ({st.session_state.get('mc_run_at', '—')}). "
+                   "Adjusting sliders above does not change these results — click "
+                   "**Run Tournament Simulation** to recompute.")
         conc = compute_concentration_metrics(mc.win_tournament)
         st.success(
             f"Done — {mc.n_simulations:,} simulations. "
@@ -1604,7 +1695,7 @@ with tab_tournament:
             f"Based on {mc.n_simulations:,} Monte Carlo simulations. "
             "Probabilities reflect model uncertainty — not guaranteed outcomes."
         )
-    else:
+    if mc is None:
         st.markdown(
             "Click **Run Tournament Simulation** to generate probability estimates. "
             "Results are based on the same calibrated model used in the Match Predictor tab."
