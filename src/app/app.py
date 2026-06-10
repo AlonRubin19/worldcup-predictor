@@ -89,6 +89,8 @@ if "last_refresh" not in st.session_state:
     st.session_state["last_refresh"] = None
 if "provider_result" not in st.session_state:
     st.session_state["provider_result"] = None
+if "refresh_summary" not in st.session_state:
+    st.session_state["refresh_summary"] = None
 
 # ── Global refresh button (top of page) ───────────────────────────────────────
 _gcol1, _gcol2, _gcol3 = st.columns([4, 1, 2])
@@ -104,8 +106,40 @@ with _gcol3:
 
 if _global_refresh:
     import datetime
+    from src.data.refresh_pipeline import refresh_team_data
+    from src.data.team_api_ids import TEAM_API_IDS
+
     st.session_state["last_refresh"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     st.session_state["provider_result"] = None   # force re-fetch
+    st.session_state["refresh_summary"] = refresh_team_data(
+        _api_client, list(TEAM_API_IDS.items())
+    )
+
+if st.session_state.get("refresh_summary"):
+    _rs = st.session_state["refresh_summary"]
+    with st.expander(f"🔄 Refresh details — {_rs.timestamp}", expanded=_global_refresh):
+        st.caption(
+            f"API connected: {'✅ yes' if _api_client._api_key else '❌ no (API_FOOTBALL_KEY not set)'} | "
+            f"Squads refreshed: {_rs.squads_refreshed}/{len(_rs.teams)} | "
+            f"Injuries refreshed: {_rs.injuries_refreshed}/{len(_rs.teams)} | "
+            f"Player stats refreshed: {_rs.stats_refreshed}/{len(_rs.teams)}"
+        )
+        st.dataframe(
+            [
+                {
+                    "Team": t.team,
+                    "Squad source": t.squad_source,
+                    "Squad players": t.squad_count,
+                    "Injury source": t.injury_source,
+                    "Injuries": t.injury_count,
+                    "Stats source": t.stats_source,
+                    "Live data used": "✅" if t.used_live_data else "⚠️ fallback",
+                }
+                for t in _rs.teams
+            ],
+            hide_index=True,
+            width="stretch",
+        )
 
 tab_overview, tab_predictor, tab_board, tab_tournament, tab_golden_boot, tab_status, tab_backtest, tab_market = st.tabs([
     "🏠 Tournament Overview",
