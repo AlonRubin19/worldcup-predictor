@@ -2,15 +2,15 @@ import pytest
 from src.models.market_blend import blend_probabilities, BlendedProbabilities
 
 
-def test_blend_85_15_with_valid_market():
+def test_blend_80_20_with_valid_market():
     result = blend_probabilities(
         model_win_a=0.50, model_draw=0.25, model_win_b=0.25,
         market_win_a=0.40, market_draw=0.30, market_win_b=0.30,
         market_research_valid=True,
     )
-    assert result.win_a == pytest.approx(0.85 * 0.50 + 0.15 * 0.40)
-    assert result.draw == pytest.approx(0.85 * 0.25 + 0.15 * 0.30)
-    assert result.win_b == pytest.approx(0.85 * 0.25 + 0.15 * 0.30)
+    assert result.win_a == pytest.approx(0.80 * 0.50 + 0.20 * 0.40)
+    assert result.draw == pytest.approx(0.80 * 0.25 + 0.20 * 0.30)
+    assert result.win_b == pytest.approx(0.80 * 0.25 + 0.20 * 0.30)
     assert result.used_market is True
 
 
@@ -51,4 +51,4 @@ def test_blend_label():
         market_win_a=0.40, market_draw=0.30, market_win_b=0.30,
         market_research_valid=True,
     )
-    assert "85%" in result.label and "15%" in result.label
+    assert "80%" in result.label and "20%" in result.label

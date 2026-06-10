@@ -90,7 +90,7 @@ class FullPrediction:
     # Meta
     is_research_valid: bool
     lineup_source:     str
-    model_label:       str = "ELO + MLE + Dixon-Coles (rho=-0.30)"
+    model_label:       str = "ELO + MLE + Dixon-Coles (rho=-0.13)"
     # Market blend (1X2 only -- scoreline matrix is unaffected)
     blend:             BlendedProbabilities | None = None
 
@@ -161,7 +161,7 @@ def run_full_prediction(inp: RunnerInput) -> FullPrediction:
     expl_inp = ExplanationInput(
         match_id="live",
         team_a=inp.team_a, team_b=inp.team_b,
-        model_type="ELO + MLE + Dixon-Coles (rho=-0.30)",
+        model_type="ELO + MLE + Dixon-Coles (rho=-0.13)",
         elo_a=inp.snapshot_a.elo, elo_b=inp.snapshot_b.elo,
         alpha_attack_a=inp.params_a.alpha_attack, alpha_attack_b=inp.params_b.alpha_attack,
         beta_defense_a=inp.params_a.beta_defense, beta_defense_b=inp.params_b.beta_defense,

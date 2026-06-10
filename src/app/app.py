@@ -881,7 +881,7 @@ with tab_predictor:
             horizontal=True,
             help=(
                 "Research-valid (default): historical ELO + MLE attack/defense + "
-                "calibrated xG + Dixon-Coles rho=-0.30. "
+                "calibrated xG + Dixon-Coles rho=-0.13. "
                 "Legacy: manually-assigned team ratings — illustrative only."
             ),
         )
@@ -976,7 +976,7 @@ with tab_predictor:
         _expl_elo_a, _expl_elo_b = snap_a.elo, snap_b.elo
         _expl_alpha_a, _expl_alpha_b = par_a.alpha_attack, par_b.alpha_attack
         _expl_beta_a,  _expl_beta_b  = par_a.beta_defense,  par_b.beta_defense
-        _model_label = "ELO + MLE + Dixon-Coles (calibrated, rho=-0.30)"
+        _model_label = "ELO + MLE + Dixon-Coles (calibrated, rho=-0.13)"
 
     else:
         _ra = all_ratings.get(team_a, _AVG_RATINGS)
@@ -1166,9 +1166,10 @@ with tab_predictor:
             }), use_container_width=True, hide_index=True)
         else:
             st.info(
-                "**Market blend unavailable** — no research-valid bookmaker odds loaded for "
-                "this match. Showing 100% model probabilities "
-                "(Model + Market Blend would be 85% model / 15% bookmaker market when available)."
+                "**Model only — bookmaker odds unavailable.** No research-valid bookmaker "
+                "odds are loaded for this match, so the prediction shown is 100% model-based "
+                "(Final prediction would be 80% model / 20% bookmaker market when real odds "
+                "are available)."
             )
 
     # ── Collapsible: Advanced model details (signals table + key reasons) ────
@@ -1794,7 +1795,7 @@ with tab_tournament:
         "reaching each stage."
     )
     st.info(
-        "Uses ELO + MLE + calibrated xG + Dixon-Coles (rho=-0.30). "
+        "Uses ELO + MLE + calibrated xG + Dixon-Coles (rho=-0.13). "
         "Group stage allows draws. Knockout ties resolved by penalty probability."
     )
 

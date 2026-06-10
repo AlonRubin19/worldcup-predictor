@@ -1,6 +1,6 @@
 """market_blend.py — blend model 1X2 probabilities with bookmaker market.
 
-final_probability = 0.85 * model_probability + 0.15 * market_implied_probability
+final_probability = 0.80 * model_probability + 0.20 * market_implied_probability
 
 Only applied when real, research-valid bookmaker odds are available. Otherwise
 the model probability is used unchanged (used_market=False).
@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-MODEL_WEIGHT = 0.85
-MARKET_WEIGHT = 0.15
+MODEL_WEIGHT = 0.80
+MARKET_WEIGHT = 0.20
 
-BLEND_LABEL = "Model + Market Blend: 85% model / 15% bookmaker market"
-MODEL_ONLY_LABEL = "Model only (no valid bookmaker market available)"
+BLEND_LABEL = "Final prediction: 80% model / 20% bookmaker market"
+MODEL_ONLY_LABEL = "Model only — bookmaker odds unavailable"
 
 
 @dataclass

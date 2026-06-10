@@ -13,7 +13,7 @@ from src.models.xg_calibration import calibrate_xg
 from src.models.dixon_coles import predict_dixon_coles
 from src.models.poisson import PredictionResult
 
-DEFAULT_RHO = -0.30
+DEFAULT_RHO = -0.13
 
 
 @dataclass

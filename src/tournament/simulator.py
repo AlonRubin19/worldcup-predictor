@@ -30,7 +30,7 @@ from src.models.poisson import build_score_matrix
 
 _DEFAULT_SNAP = TeamSnapshot(elo=1800.0, ppg=1.5)
 _DEFAULT_PAR  = StrengthParams(alpha_attack=1.0, beta_defense=1.0, matches_used=0)
-_RHO = -0.30
+_RHO = -0.13
 _MAX_GOALS = 10   # cap scoreline sampling range
 
 

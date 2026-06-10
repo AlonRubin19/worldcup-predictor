@@ -183,10 +183,14 @@ def test_signal_strength_strong_implies_high_probability():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def test_higher_probability_ranked_first():
-    """First recommendation should have highest or equal probability."""
+    """Within the same signal-strength tier, recommendations are ranked by
+    market priority rather than raw probability — so a later recommendation
+    can have a higher probability than an earlier one. Across tiers, however,
+    a "Strong" signal must never be ranked below a "Moderate"/"Weak" one."""
     rs = _recs(xg_a=2.0, xg_b=0.9)
-    probs = [r.model_probability for r in rs.recommendations]
-    assert probs[0] >= probs[-1]
+    tiers = {"Strong": 0, "Moderate": 1, "Weak": 2}
+    ranks = [tiers[r.signal_strength] for r in rs.recommendations]
+    assert ranks == sorted(ranks)
 
 
 def test_1x2_ranked_above_exact_score_when_prob_equal_or_higher():
