@@ -108,21 +108,36 @@ if _global_refresh:
     import datetime
     from src.data.refresh_pipeline import refresh_team_data
     from src.data.team_api_ids import TEAM_API_IDS
+    from src.data.team_coverage import build_coverage_table, apply_refresh_results
+    from src.tournament.fixtures import load_fixtures as _load_fixtures_for_refresh, _DEFAULT as _FIXTURES_PATH
+
+    _all_fixtures = _load_fixtures_for_refresh(_FIXTURES_PATH)
+    _all_teams = sorted({f.team_a for f in _all_fixtures} | {f.team_b for f in _all_fixtures})
+
+    _mapped_teams = [(t, TEAM_API_IDS[t]) for t in _all_teams if t in TEAM_API_IDS]
 
     st.session_state["last_refresh"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     st.session_state["provider_result"] = None   # force re-fetch
-    st.session_state["refresh_summary"] = refresh_team_data(
-        _api_client, list(TEAM_API_IDS.items())
-    )
+    _summary = refresh_team_data(_api_client, _mapped_teams)
+    st.session_state["refresh_summary"] = _summary
+    _coverage = build_coverage_table(_all_teams, TEAM_API_IDS)
+    st.session_state["coverage_table"] = apply_refresh_results(_coverage, _summary)
 
 if st.session_state.get("refresh_summary"):
     _rs = st.session_state["refresh_summary"]
+    _cov = st.session_state.get("coverage_table", [])
     with st.expander(f"🔄 Refresh details — {_rs.timestamp}", expanded=_global_refresh):
+        _n_total = len(_cov) if _cov else len(_rs.teams)
+        _n_mapped = sum(1 for r in _cov if r.mapped) if _cov else len(_rs.teams)
+        _n_unmapped = _n_total - _n_mapped
+        _n_fallback = sum(1 for t in _rs.teams if not t.used_live_data)
         st.caption(
             f"API connected: {'✅ yes' if _api_client._api_key else '❌ no (API_FOOTBALL_KEY not set)'} | "
+            f"Teams refreshed: {len(_rs.teams)}/{_n_total} | "
             f"Squads refreshed: {_rs.squads_refreshed}/{len(_rs.teams)} | "
             f"Injuries refreshed: {_rs.injuries_refreshed}/{len(_rs.teams)} | "
-            f"Player stats refreshed: {_rs.stats_refreshed}/{len(_rs.teams)}"
+            f"Player stats refreshed: {_rs.stats_refreshed}/{len(_rs.teams)} | "
+            f"Fallback: {_n_fallback} | Unmapped (no API id): {_n_unmapped}"
         )
         st.dataframe(
             [
@@ -140,6 +155,23 @@ if st.session_state.get("refresh_summary"):
             hide_index=True,
             width="stretch",
         )
+        if _cov:
+            st.markdown("**Full 32-team coverage map** (no team silently dropped):")
+            st.dataframe(
+                [
+                    {
+                        "Team": r.team,
+                        "API team ID": r.api_team_id if r.api_team_id is not None else "—",
+                        "Mapped": "✅" if r.mapped else "❌ not mapped",
+                        "Squad available": "✅" if r.squad_available else "—",
+                        "Injuries available": "✅" if r.injuries_available else "—",
+                        "Player stats available": "✅" if r.player_stats_available else "—",
+                    }
+                    for r in _cov
+                ],
+                hide_index=True,
+                width="stretch",
+            )
 
 tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, tab_overview, tab_board = st.tabs([
     "🏠 Home",
@@ -930,6 +962,56 @@ with tab_predictor:
             f"Last refresh: {_hdr_live.last_refresh or '—'}  |  "
             f"Lineup source: {_hdr_live.lineup_source}"
         )
+
+    # ── HERO: Live squad strength impact ─────────────────────────────────────
+    from src.models.squad_strength_application import apply_squad_strength_to_match
+    from src.data.live_injury_loader import load_live_injuries as _load_live_injuries
+    from src.data.team_api_ids import TEAM_API_IDS as _TEAM_API_IDS
+    _ss_profiles = load_player_profiles()
+    _ss_injured: set[str] = set()
+    try:
+        if team_a in _TEAM_API_IDS:
+            _ss_inj_a, _ = _load_live_injuries(_api_client, _TEAM_API_IDS[team_a])
+            _ss_injured |= _ss_inj_a
+        if team_b in _TEAM_API_IDS:
+            _ss_inj_b, _ = _load_live_injuries(_api_client, _TEAM_API_IDS[team_b])
+            _ss_injured |= _ss_inj_b
+    except Exception:
+        pass
+    _ss_result = apply_squad_strength_to_match(
+        team_a, team_b, float(final_xg_a), float(final_xg_b),
+        profiles=_ss_profiles, injured_player_names=_ss_injured,
+    )
+    if _ss_result.live_data_available:
+        with st.expander("👥 Live Squad Strength Impact", expanded=False):
+            st.dataframe(pd.DataFrame({
+                "Metric": [f"{team_a} xG", f"{team_b} xG",
+                           f"{team_a} Win %", "Draw %", f"{team_b} Win %"],
+                "Before squad adj.": [
+                    f"{_ss_result.xg_a_before:.2f}", f"{_ss_result.xg_b_before:.2f}",
+                    f"{_ss_result.win_a_before:.1%}", f"{_ss_result.draw_before:.1%}",
+                    f"{_ss_result.win_b_before:.1%}",
+                ],
+                "After squad adj.": [
+                    f"{_ss_result.xg_a_after:.2f}", f"{_ss_result.xg_b_after:.2f}",
+                    f"{_ss_result.win_a_after:.1%}", f"{_ss_result.draw_after:.1%}",
+                    f"{_ss_result.win_b_after:.1%}",
+                ],
+            }), use_container_width=True, hide_index=True)
+            st.caption(
+                f"Squad strength factors — {team_a}: {_ss_result.factor_a:.2f}x, "
+                f"{team_b}: {_ss_result.factor_b:.2f}x (1.00x = baseline)."
+            )
+    else:
+        st.info("👥 Live squad data unavailable — using baseline team model.")
+
+    # ── HERO: Injuries / unavailable players ─────────────────────────────────
+    if _ss_injured:
+        with st.expander(f"🩹 Injuries / Unavailable Players ({len(_ss_injured)})", expanded=False):
+            st.write(", ".join(sorted(_ss_injured)))
+            st.caption("Source: API-Football live injuries — applied to squad strength above.")
+    else:
+        st.caption("🩹 No live injury data available for this match.")
 
     # ── HERO: Prediction card ─────────────────────────────────────────────────
     render_prediction_card(

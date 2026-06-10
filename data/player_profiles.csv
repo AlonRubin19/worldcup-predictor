@@ -140,3 +140,12 @@ nor023,J. Strand Larsen,Norway,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_footba
 nor024,A. Nusa,Norway,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
 nor025,A. Sørloth,Norway,FW,,0.0,0.0,0.0,0.0,0.15,0.0,0.0,0,1.0,api_football_squad_only,False,False
 nor026,J. Ryerson,Norway,DF,,92.0,0.0,0.0,0.0,0.2934782608695652,0.24456521739130435,0.0,0,1.0,api_football,True,False
+ger001,Jamal Musiala,Germany,MF,Bayern Munich,1500.0,800.0,0.45,0.35,0.50,0.40,1.5,30,1.30,placeholder,False,False
+ger002,Florian Wirtz,Germany,MF,Bayer Leverkusen,1600.0,750.0,0.40,0.45,0.48,0.42,1.3,25,1.28,placeholder,False,False
+ger003,Kai Havertz,Germany,FW,Arsenal,1400.0,700.0,0.50,0.20,0.55,0.25,1.0,50,1.25,placeholder,False,True
+net001,Memphis Depay,Netherlands,FW,Corinthians,1100.0,600.0,0.55,0.20,0.52,0.22,0.8,90,1.20,placeholder,False,True
+net002,Cody Gakpo,Netherlands,FW,Liverpool,1500.0,650.0,0.45,0.30,0.48,0.30,1.1,40,1.18,placeholder,False,False
+net003,Xavi Simons,Netherlands,MF,RB Leipzig,1600.0,700.0,0.35,0.40,0.40,0.38,1.4,25,1.15,placeholder,False,False
+bel001,Kevin De Bruyne,Belgium,MF,Man City,1400.0,750.0,0.30,0.55,0.35,0.50,1.6,100,1.30,placeholder,False,False
+bel002,Romelu Lukaku,Belgium,FW,Napoli,1300.0,700.0,0.55,0.20,0.58,0.22,0.7,110,1.22,placeholder,False,True
+bel003,Jeremy Doku,Belgium,FW,Man City,1450.0,650.0,0.30,0.35,0.35,0.30,0.9,35,1.12,placeholder,False,False
