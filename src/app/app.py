@@ -35,7 +35,7 @@ from src.app.components.daily_match_board import (
 )
 from src.tournament.simulator import run_monte_carlo, MonteCarloResult
 from src.data.player_loader import load_player_profiles
-from src.models.golden_boot import predict_golden_boot, GoldenBootPlayerResult
+from src.models.golden_boot import predict_golden_boot, GoldenBootPlayerResult, expected_team_matches
 from src.tournament.fixtures import load_fixtures
 from src.data.fixture_provider import FixtureSource, get_fixtures as _get_fixtures
 from src.app.selected_fixture import (
@@ -911,8 +911,27 @@ with tab_predictor:
 
     _confidence = compute_confidence(result.win_a, result.draw, result.win_b, _all_warnings)
 
-    # ── Render: Prediction Card ───────────────────────────────────────────────
+    # ── HERO: Match header card ───────────────────────────────────────────────
     st.markdown("---")
+    with st.container(border=True):
+        st.markdown(f"### {team_a} vs {team_b}")
+        _hdr_live = get_live_data_status(_api_client)
+        if is_valid_selected_fixture(_sel_fix):
+            _hdr_src = "🌐 Live API" if _sel_fix.source_type == "api" else "📁 CSV"
+            _hdr_fid = f" | Fixture ID: `{_sel_fix.fixture_id}`" if _sel_fix.fixture_id else ""
+            st.caption(
+                f"{_sel_fix.date}  •  {_sel_fix.stage.replace('_', ' ').title()}"
+                + (f" • Group {_sel_fix.group}" if _sel_fix.group else "")
+                + f"  |  Source: {_hdr_src}{_hdr_fid}"
+            )
+        else:
+            st.caption("No live fixture selected — showing a manual head-to-head prediction.")
+        st.caption(
+            f"Last refresh: {_hdr_live.last_refresh or '—'}  |  "
+            f"Lineup source: {_hdr_live.lineup_source}"
+        )
+
+    # ── HERO: Prediction card ─────────────────────────────────────────────────
     render_prediction_card(
         team_a=team_a, team_b=team_b,
         win_a=result.win_a, draw=result.draw, win_b=result.win_b,
@@ -921,79 +940,12 @@ with tab_predictor:
         model_label=_model_label,
     )
 
-    # ── Render: Scoreline Table ───────────────────────────────────────────────
-    st.markdown("---")
+    # ── HERO: Score + xG card ─────────────────────────────────────────────────
     render_scoreline_table(result.top_scorelines, team_a, team_b)
 
-    # ── Render: Betting Markets ───────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("Betting Markets")
-    st.caption(
-        "These probabilities are model outputs, not guaranteed outcomes or betting advice."
-    )
-
+    # ── HERO: Top Signals + Key Reasons ───────────────────────────────────────
     _bm_matrix = build_dc_matrix(final_xg_a, final_xg_b, rho=DEFAULT_RHO)
     _bm = compute_betting_markets(team_a, team_b, _bm_matrix)
-
-    _bm_col1, _bm_col2 = st.columns(2)
-
-    with _bm_col1:
-        st.markdown("**Over / Under**")
-        _ou_rows = [
-            {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
-             "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
-            for mp in _bm.over_under
-        ]
-        st.dataframe(pd.DataFrame(_ou_rows), use_container_width=True, hide_index=True)
-
-        st.markdown("**Both Teams To Score**")
-        _btts_rows = [
-            {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
-             "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
-            for mp in _bm.btts
-        ]
-        st.dataframe(pd.DataFrame(_btts_rows), use_container_width=True, hide_index=True)
-
-        st.markdown("**Clean Sheet**")
-        _cs_rows = [
-            {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
-             "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
-            for mp in _bm.clean_sheet
-        ]
-        st.dataframe(pd.DataFrame(_cs_rows), use_container_width=True, hide_index=True)
-
-    with _bm_col2:
-        st.markdown("**Double Chance**")
-        _dc_rows = [
-            {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
-             "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
-            for mp in _bm.double_chance
-        ]
-        st.dataframe(pd.DataFrame(_dc_rows), use_container_width=True, hide_index=True)
-
-        st.markdown("**Draw No Bet**")
-        _dnb_rows = [
-            {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
-             "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
-            for mp in _bm.draw_no_bet
-        ]
-        st.dataframe(pd.DataFrame(_dnb_rows), use_container_width=True, hide_index=True)
-
-        st.markdown("**Team Totals**")
-        _tt_rows = [
-            {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
-             "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
-            for mp in _bm.team_totals
-        ]
-        st.dataframe(pd.DataFrame(_tt_rows), use_container_width=True, hide_index=True)
-
-    # ── Render: Model Signals ─────────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("Model Signals")
-    st.caption(
-        "Model signal ranking — not betting advice. "
-        "These are model outputs only and do not represent guaranteed outcomes."
-    )
 
     _rec_set = generate_recommendations(
         betting_markets=_bm,
@@ -1003,25 +955,93 @@ with tab_predictor:
         top_n=5,
     )
 
+    st.markdown("---")
+    st.subheader("🎯 Top Signals")
+    st.caption("Model signal ranking — not betting advice.")
     if _rec_set.recommendations:
         _signal_rows = []
         for r in _rec_set.recommendations:
             _badge = {"Strong": "🟢 Strong", "Moderate": "🟡 Moderate", "Weak": "🔴 Weak"}.get(
                 r.signal_strength, r.signal_strength
             )
-            _row = {
+            _signal_rows.append({
                 "Selection": r.selection,
                 "Probability": f"{r.model_probability:.1%}",
                 "Fair Odds": f"{r.fair_odds:.2f}",
                 "Signal": _badge,
-                "Rationale": r.rationale,
-            }
-            if r.warning:
-                _row["Note"] = r.warning
-            _signal_rows.append(_row)
+                "Why": r.rationale.split(".")[0] + ".",
+            })
         st.dataframe(pd.DataFrame(_signal_rows), use_container_width=True, hide_index=True)
     else:
         st.info("No high-signal markets identified for this match.")
+
+    st.subheader("🔑 Key Reasons")
+    render_explanation_panel(_expl, is_research_valid=is_research_valid and not _all_warnings)
+
+    # ── HERO: Market blend badge ──────────────────────────────────────────────
+    st.info(
+        "📊 **Market blend unavailable** — no research-valid bookmaker odds loaded for "
+        "this match. Showing 100% model probabilities "
+        "(Model + Market Blend would be 85% model / 15% bookmaker market when available)."
+    )
+
+    # ── Collapsible: Betting Markets ──────────────────────────────────────────
+    with st.expander("💰 Betting Markets (full)", expanded=False):
+        st.caption(
+            "These probabilities are model outputs, not guaranteed outcomes or betting advice."
+        )
+
+        _bm_col1, _bm_col2 = st.columns(2)
+
+        with _bm_col1:
+            st.markdown("**Over / Under**")
+            _ou_rows = [
+                {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
+                 "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
+                for mp in _bm.over_under
+            ]
+            st.dataframe(pd.DataFrame(_ou_rows), use_container_width=True, hide_index=True)
+
+            st.markdown("**Both Teams To Score**")
+            _btts_rows = [
+                {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
+                 "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
+                for mp in _bm.btts
+            ]
+            st.dataframe(pd.DataFrame(_btts_rows), use_container_width=True, hide_index=True)
+
+            st.markdown("**Clean Sheet**")
+            _cs_rows = [
+                {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
+                 "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
+                for mp in _bm.clean_sheet
+            ]
+            st.dataframe(pd.DataFrame(_cs_rows), use_container_width=True, hide_index=True)
+
+        with _bm_col2:
+            st.markdown("**Double Chance**")
+            _dc_rows = [
+                {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
+                 "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
+                for mp in _bm.double_chance
+            ]
+            st.dataframe(pd.DataFrame(_dc_rows), use_container_width=True, hide_index=True)
+
+            st.markdown("**Draw No Bet**")
+            _dnb_rows = [
+                {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
+                 "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
+                for mp in _bm.draw_no_bet
+            ]
+            st.dataframe(pd.DataFrame(_dnb_rows), use_container_width=True, hide_index=True)
+
+            st.markdown("**Team Totals**")
+            _tt_rows = [
+                {"Market": mp.selection, "Probability": f"{mp.probability:.1%}",
+                 "Fair Odds": f"{mp.implied_fair_odds:.2f}", "Confidence": mp.confidence_label}
+                for mp in _bm.team_totals
+            ]
+            st.dataframe(pd.DataFrame(_tt_rows), use_container_width=True, hide_index=True)
 
     # ── Live Data Status ──────────────────────────────────────────────────────
     st.markdown("---")
@@ -1264,10 +1284,6 @@ with tab_predictor:
                 "from official pre-match lineups."
             )
 
-    # ── Render: Explanation Panel ─────────────────────────────────────────────
-    st.markdown("---")
-    st.subheader("Key Reasons")
-    render_explanation_panel(_expl, is_research_valid=is_research_valid and not _all_warnings)
 with tab_lab:
     st.markdown("Advanced analytics: backtesting, market intelligence, and model calibration.")
     _lab_bt, _lab_mkt = st.tabs(["📊 Backtesting", "📈 Market Intelligence"])
@@ -1761,6 +1777,7 @@ with tab_golden_boot:
                     _gb_profiles, _gb_mc, n_sims=gb_n_sims, rng_seed=42,
                 )
                 st.session_state["golden_boot_results"] = _gb_results
+                st.session_state["golden_boot_mc"] = _gb_mc
             elif not _gb_profiles:
                 st.session_state["golden_boot_results"] = []
 
@@ -1774,17 +1791,57 @@ with tab_golden_boot:
     elif not _gb_results:
         st.info("No player profile data available for Golden Boot projections.")
     else:
-        # ── 1. Top 25 Golden Boot table ────────────────────────────────────
-        st.subheader("🏅 Top 25 Golden Boot Table")
-        top25 = _gb_results[:25]
+        # ── Data validity warnings ───────────────────────────────────────────
+        _gb_mc_cached = st.session_state.get("golden_boot_mc")
+        _gb_valid_count2 = sum(1 for p in _gb_profiles.values() if p.research_valid)
+        if _gb_valid_count2 == 0:
+            st.warning("⚠️ All player data is placeholder/manual estimates — Golden Boot is "
+                       "**engineering-estimate only**, not research-valid.")
+        _gb_major_candidates = ["Messi", "Mbappe", "Kane", "Haaland", "Yamal", "Vinicius",
+                                 "Bellingham", "Olise"]
+        _gb_names = " ".join(p.player_name for p in _gb_profiles.values())
+        _gb_missing_majors = [n for n in _gb_major_candidates if n.split()[-1] not in _gb_names]
+        if _gb_missing_majors:
+            st.warning(f"⚠️ Missing major candidates from player data: {', '.join(_gb_missing_majors)}.")
+        _gb_teams_with_data = {r.team for r in _gb_results}
+        if len(_gb_teams_with_data) < 48:
+            st.info(f"ℹ️ Squad data covers {len(_gb_teams_with_data)} of 48 teams — players from "
+                    "uncovered teams are absent from this projection.")
+
+        # ── 1. Top 5 Golden Boot cards ───────────────────────────────────────
+        st.subheader("🏅 Top 5 Golden Boot Favourites")
+        _gb_top5 = _gb_results[:5]
+        _gb_cols = st.columns(len(_gb_top5))
+        for _col, r in zip(_gb_cols, _gb_top5):
+            _r_valid = _gb_profiles.get(r.player_id) and _gb_profiles[r.player_id].research_valid
+            _r_matches = (
+                expected_team_matches(r.team, _gb_mc_cached) if _gb_mc_cached else None
+            )
+            with _col:
+                with st.container(border=True):
+                    st.markdown(f"**{r.player_name}**")
+                    st.caption(r.team)
+                    st.metric("P(Top Scorer)", f"{r.prob_top_scorer:.1%}")
+                    st.metric("Expected Goals", f"{r.expected_goals:.2f}")
+                    if _r_matches is not None:
+                        st.caption(f"Projected matches: {_r_matches:.2f}")
+                    st.markdown("✅ Research-valid" if _r_valid else "⚠️ Estimate only")
+
+        # ── 2. Top 20 table ───────────────────────────────────────────────────
+        st.subheader("🏅 Top 20 Golden Boot Table")
+        top25 = _gb_results[:20]
         gb_rows = []
         for i, r in enumerate(top25, start=1):
+            _r_matches = (
+                expected_team_matches(r.team, _gb_mc_cached) if _gb_mc_cached else None
+            )
             gb_rows.append({
                 "Rank": i,
                 "Player": r.player_name,
                 "Team": r.team,
-                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
                 "P(Top Scorer)": f"{r.prob_top_scorer:.1%}",
+                "Expected Goals (xGT)": f"{r.expected_goals:.2f}",
+                "Projected Matches": f"{_r_matches:.2f}" if _r_matches is not None else "—",
                 "P(3+ goals)": f"{r.prob_score_3plus:.1%}",
                 "P(5+ goals)": f"{r.prob_score_5plus:.1%}",
                 "P(7+ goals)": f"{r.prob_score_7plus:.1%}",
