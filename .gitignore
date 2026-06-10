@@ -14,3 +14,4 @@ venv/
 
 # API cache — ephemeral, not for version control
 data/api_cache/
+data/cache/

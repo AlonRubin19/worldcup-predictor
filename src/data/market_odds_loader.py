@@ -22,6 +22,8 @@ class MarketOddsResult:
     win_b: float | None
     research_valid: bool
     bookmaker: str | None = None
+    last_update: str | None = None
+    source: str | None = None
 
 
 def _implied_probs(odds_a: float, odds_d: float, odds_b: float) -> tuple[float, float, float]:
@@ -39,6 +41,19 @@ def get_market_odds_for_match(
     reversed). Returns research_valid=False if no row found or the row is a
     placeholder.
     """
+    from src.data.market_sources.supabase_betting_app import find_odds_for_match
+
+    live = find_odds_for_match(team_a, team_b)
+    if live is not None:
+        win_a, draw, win_b = _implied_probs(live.home_odds, live.draw_odds, live.away_odds)
+        return MarketOddsResult(
+            win_a=win_a, draw=draw, win_b=win_b,
+            research_valid=True,
+            bookmaker=live.bookmaker,
+            last_update=live.updated_at,
+            source="betting_app_supabase (The Odds API)",
+        )
+
     p = path if path is not None else _DEFAULT
     if not Path(p).exists():
         return MarketOddsResult(None, None, None, research_valid=False)

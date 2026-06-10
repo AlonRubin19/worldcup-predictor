@@ -1157,7 +1157,11 @@ with tab_predictor:
     # ── Collapsible: Market details ───────────────────────────────────────────
     with st.expander("📊 Market Details (bookmaker blend)", expanded=False):
         if _blend.used_market:
-            st.success(f"**{_blend.label}**" + (f" (source: {_mkt.bookmaker})" if _mkt.bookmaker else ""))
+            st.success(f"**{_blend.label}**")
+            st.caption(
+                f"Source: {_mkt.source or 'unknown'} — bookmaker: {_mkt.bookmaker or 'n/a'} "
+                f"— last update: {_mkt.last_update or 'n/a'}"
+            )
             st.dataframe(pd.DataFrame({
                 "Outcome": [f"{team_a} Win", "Draw", f"{team_b} Win"],
                 "Raw model 1X2": [f"{result.win_a:.1%}", f"{result.draw:.1%}", f"{result.win_b:.1%}"],
