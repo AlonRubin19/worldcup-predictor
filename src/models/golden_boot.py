@@ -105,6 +105,7 @@ def expected_team_matches(team: str, mc: MonteCarloResult) -> float:
     """
     return (
         _GROUP_STAGE_MATCHES
+        + mc.reach_r32.get(team, 0.0)
         + mc.reach_r16.get(team, 0.0)
         + mc.reach_qf.get(team, 0.0)
         + mc.reach_sf.get(team, 0.0)

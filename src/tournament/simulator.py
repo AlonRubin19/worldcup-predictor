@@ -18,7 +18,8 @@ from pathlib import Path
 import numpy as np
 
 from src.tournament.fixtures import load_fixtures, Fixture
-from src.tournament.standings import TeamStanding, update_standing, qualify_from_group
+from src.tournament.standings import TeamStanding, update_standing, qualify_from_group, rank_group
+from src.tournament.bracket_2026 import qualify_2026, build_r32_bracket, GROUPS_2026
 from src.tournament.calibration import CalibrationParams, apply_temperature, apply_xg_noise, apply_upset_factor
 from src.data.team_snapshot_loader import TeamSnapshot
 from src.data.strength_loader import StrengthParams
@@ -59,6 +60,7 @@ class MonteCarloResult:
     reach_sf: dict[str, float]
     reach_qf: dict[str, float]
     reach_r16: dict[str, float]
+    reach_r32: dict[str, float] = field(default_factory=dict)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -391,4 +393,141 @@ def run_monte_carlo(
         reach_sf=_probs(stage_counts["semi_final"]),
         reach_qf=_probs(stage_counts["quarter_final"]),
         reach_r16=_probs(stage_counts["round_of_16"]),
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WC2026: 48 teams, 12 groups, top-2 + best-8-thirds -> Round of 32
+# ─────────────────────────────────────────────────────────────────────────────
+
+_STAGE_ORDER_2026 = ["round_of_32", "round_of_16", "quarter_final", "semi_final", "final"]
+
+_STAGE_RANK_2026 = {
+    "group": 0,
+    "round_of_32": 1,
+    "round_of_16": 2,
+    "quarter_final": 3,
+    "semi_final": 4,
+    "final": 5,
+}
+
+
+def run_tournament_2026(
+    fixture_path: Path,
+    snaps: dict[str, TeamSnapshot],
+    params: dict[str, StrengthParams],
+    rng_seed: int | None = None,
+    calibration: CalibrationParams | None = None,
+) -> TournamentResult:
+    """Run one full WC2026-format tournament simulation (48 teams, 12 groups,
+    Round of 32 onward). Returns champion and advancement map."""
+    rng = np.random.default_rng(rng_seed)
+
+    def _seed() -> int:
+        return int(rng.integers(0, 2**31))
+
+    fixtures = load_fixtures(fixture_path)
+    advancement: dict[str, str] = {}
+
+    # ── Group stage (12 groups of 4) ───────────────────────────────────────
+    group_standings: dict[str, dict[str, TeamStanding]] = {}
+    group_fixtures = [f for f in fixtures if f.stage == "group"]
+
+    for f in group_fixtures:
+        g = f.group
+        if g not in group_standings:
+            group_standings[g] = {}
+        for team in (f.team_a, f.team_b):
+            if team not in group_standings[g]:
+                group_standings[g][team] = TeamStanding(
+                    team=team, points=0, goals_for=0, goals_against=0,
+                    goal_diff=0, played=0,
+                )
+
+    for f in group_fixtures:
+        inp = _make_inp(f.team_a, f.team_b, snaps, params)
+        outcome = simulate_match(inp, rng_seed=_seed(), calib=calibration)
+        group_standings[f.group][f.team_a] = update_standing(
+            group_standings[f.group][f.team_a], outcome.goals_a, outcome.goals_b
+        )
+        group_standings[f.group][f.team_b] = update_standing(
+            group_standings[f.group][f.team_b], outcome.goals_b, outcome.goals_a
+        )
+
+    for g_teams in group_standings.values():
+        for team in g_teams:
+            advancement[team] = "group"
+
+    # ── Qualification: top-2 + best-8-thirds = 32 teams ────────────────────
+    qualified = qualify_2026(group_standings, snaps)
+    for q in qualified:
+        advancement[q.team] = "round_of_32"
+
+    # ── Round of 32 bracket ─────────────────────────────────────────────────
+    r32_matchups = build_r32_bracket(qualified)
+    current_round = r32_matchups
+
+    for stage in _STAGE_ORDER_2026:
+        next_round = []
+        for team_a, team_b in current_round:
+            inp = _make_inp(team_a, team_b, snaps, params)
+            outcome = simulate_knockout_match(inp, rng_seed=_seed(), calib=calibration)
+            winner = team_a if outcome.winner == "team_a" else team_b
+            loser  = team_b if winner == team_a else team_a
+
+            if stage == "final":
+                advancement[winner] = "final"
+                advancement[loser]  = "final"
+            else:
+                next_stage = _STAGE_ORDER_2026[_STAGE_ORDER_2026.index(stage) + 1]
+                advancement[winner] = next_stage
+
+            next_round.append(winner)
+        current_round = _pair_winners(next_round)
+
+    champion = current_round[0] if current_round else next_round[0]
+    advancement[champion] = "final"
+
+    return TournamentResult(champion=champion, advancement=advancement)
+
+
+def run_monte_carlo_2026(
+    fixture_path: Path,
+    snaps: dict[str, TeamSnapshot],
+    params: dict[str, StrengthParams],
+    n: int = 10_000,
+    rng_seed: int | None = None,
+    calibration: CalibrationParams | None = None,
+) -> MonteCarloResult:
+    """Run N WC2026-format tournament simulations. Return probability distributions."""
+    master_rng = np.random.default_rng(rng_seed)
+
+    win_counts: dict[str, int] = defaultdict(int)
+    stage_counts: dict[str, dict[str, int]] = {
+        s: defaultdict(int) for s in _STAGE_RANK_2026
+    }
+
+    for sim_i in range(n):
+        seed_i = int(master_rng.integers(0, 2**31))
+        result = run_tournament_2026(fixture_path, snaps, params, rng_seed=seed_i, calibration=calibration)
+
+        win_counts[result.champion] += 1
+
+        for team, stage in result.advancement.items():
+            rank = _STAGE_RANK_2026.get(stage, 0)
+            for s, s_rank in _STAGE_RANK_2026.items():
+                if rank >= s_rank:
+                    stage_counts[s][team] += 1
+
+    def _probs(counts: dict[str, int]) -> dict[str, float]:
+        return {team: count / n for team, count in counts.items()}
+
+    return MonteCarloResult(
+        n_simulations=n,
+        win_tournament=_probs(win_counts),
+        reach_final=_probs(stage_counts["final"]),
+        reach_sf=_probs(stage_counts["semi_final"]),
+        reach_qf=_probs(stage_counts["quarter_final"]),
+        reach_r16=_probs(stage_counts["round_of_16"]),
+        reach_r32=_probs(stage_counts["round_of_32"]),
     )
