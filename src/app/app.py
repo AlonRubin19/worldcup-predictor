@@ -1579,17 +1579,17 @@ with tab_lab:
                 st.caption(f"Best rho (valid path): {valid_best_rho.rho:.2f} "
                            f"(Brier: {valid_best_rho.brier_score:.4f})")
     with _lab_mkt:
-        st.markdown(
-            "Compare model predictions against bookmaker market odds. "
-            "Market odds are used for **comparison and calibration only** — "
-            "they do not change predictions."
+        st.markdown("### 📊 Bookmaker Comparison")
+        st.caption(
+            "Compares model predictions against bookmaker odds, for reference only — "
+            "this never changes the predictions shown in Match Analyzer."
         )
 
-        st.warning(
-            "⚠️ **Market Intelligence is currently engineering-valid only until sourced odds are loaded.**\n\n"
-            "Current data: `data/market_odds.csv` contains **placeholder odds**, not real bookmaker data. "
-            "Results below are for pipeline validation only. "
-            "Replace with football-data.co.uk or The Odds API data before drawing conclusions."
+        st.info(
+            "⚠️ **Market data unavailable** — `data/market_odds.csv` currently contains "
+            "placeholder odds, not real bookmaker data. "
+            "**Blend inactive until real odds are loaded.** "
+            "The figures below are for pipeline testing only."
         )
 
         try:
@@ -1599,81 +1599,82 @@ with tab_lab:
             market_results, market_summary = [], None
 
         if market_summary and market_results:
-            # ── Summary metrics ────────────────────────────────────────────────
-            st.subheader("Summary Metrics")
+            with st.expander("🔬 Advanced / technical details", expanded=False):
+                # ── Summary metrics ────────────────────────────────────────────────
+                st.subheader("Summary Metrics")
 
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                st.metric("Matched Games", market_summary.total_matches)
-            with col_b:
-                st.metric("Model Brier", f"{market_summary.model_brier:.4f}")
-            with col_c:
-                st.metric("Market Brier", f"{market_summary.market_brier:.4f}",
-                          delta=f"{market_summary.brier_delta:+.4f}",
-                          delta_color="inverse")
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("Matched Games", market_summary.total_matches)
+                with col_b:
+                    st.metric("Model Brier", f"{market_summary.model_brier:.4f}")
+                with col_c:
+                    st.metric("Market Brier", f"{market_summary.market_brier:.4f}",
+                              delta=f"{market_summary.brier_delta:+.4f}",
+                              delta_color="inverse")
 
-            col_d, col_e = st.columns(2)
-            with col_d:
-                st.metric("Avg Absolute Divergence", f"{market_summary.avg_absolute_divergence:.1%}")
-            with col_e:
-                st.metric("High-Divergence Matches (>5pp)", market_summary.high_divergence_count)
+                col_d, col_e = st.columns(2)
+                with col_d:
+                    st.metric("Avg Absolute Divergence", f"{market_summary.avg_absolute_divergence:.1%}")
+                with col_e:
+                    st.metric("High-Divergence Matches (>5pp)", market_summary.high_divergence_count)
 
-            st.caption(
-                "Brier delta = market Brier - model Brier. "
-                "Positive = model has lower Brier (better calibrated). "
-                "**Not meaningful with placeholder data.**"
-            )
-
-            # ── Model vs market comparison table ──────────────────────────────
-            st.subheader("Model vs Market Comparison")
-
-            comparison_rows = []
-            outcome_labels = {"team_a_win": "Home Win", "draw": "Draw", "team_b_win": "Away Win"}
-            for r in market_results:
-                comparison_rows.append({
-                    "Date": r.date,
-                    "Match": f"{r.team_a} vs {r.team_b}",
-                    "Actual": outcome_labels[r.actual_outcome],
-                    "Model H/D/A": f"{r.model_win_a:.2f} / {r.model_draw:.2f} / {r.model_win_b:.2f}",
-                    "Market H/D/A": f"{r.market_home:.2f} / {r.market_draw:.2f} / {r.market_away:.2f}",
-                    "Overround": f"{r.market_overround:.1%}",
-                    "Closer": "Model" if r.model_closer_than_market else "Market",
-                    "Bkm src": r.market_source_type,
-                })
-
-            st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True)
-
-            # ── Divergence table ───────────────────────────────────────────────
-            st.subheader("Divergence Table (model - market)")
-            st.caption(
-                "Positive divergence = model assigns more probability than market. "
-                "Negative = model assigns less. Signed, not absolute."
-            )
-
-            div_rows = []
-            for r in market_results:
-                flag = "YES" if abs(r.largest_divergence_value) >= 0.05 else ""
-                div_rows.append({
-                    "Match": f"{r.team_a} vs {r.team_b}",
-                    "d(Home)": f"{r.home_divergence:+.3f}",
-                    "d(Draw)": f"{r.draw_divergence:+.3f}",
-                    "d(Away)": f"{r.away_divergence:+.3f}",
-                    "Largest div outcome": r.largest_divergence_outcome.replace("_", " "),
-                    "Div value": f"{r.largest_divergence_value:+.3f}",
-                    ">5pp": flag,
-                })
-
-            st.dataframe(pd.DataFrame(div_rows), use_container_width=True)
-
-            if market_summary.high_divergence_count > 0:
-                st.markdown(
-                    f"**{market_summary.high_divergence_count} match(es)** where model and market "
-                    f"disagree by >5 percentage points on at least one outcome. "
-                    f"On those matches: model was closer in "
-                    f"**{market_summary.model_wins_high_divergence}**, "
-                    f"market was closer in "
-                    f"**{market_summary.market_wins_high_divergence}**."
+                st.caption(
+                    "Brier delta = market Brier - model Brier. "
+                    "Positive = model has lower Brier (better calibrated). "
+                    "**Not meaningful with placeholder data.**"
                 )
+
+                # ── Model vs market comparison table ──────────────────────────────
+                st.subheader("Model vs Market Comparison")
+
+                comparison_rows = []
+                outcome_labels = {"team_a_win": "Home Win", "draw": "Draw", "team_b_win": "Away Win"}
+                for r in market_results:
+                    comparison_rows.append({
+                        "Date": r.date,
+                        "Match": f"{r.team_a} vs {r.team_b}",
+                        "Actual": outcome_labels[r.actual_outcome],
+                        "Model H/D/A": f"{r.model_win_a:.2f} / {r.model_draw:.2f} / {r.model_win_b:.2f}",
+                        "Market H/D/A": f"{r.market_home:.2f} / {r.market_draw:.2f} / {r.market_away:.2f}",
+                        "Overround": f"{r.market_overround:.1%}",
+                        "Closer": "Model" if r.model_closer_than_market else "Market",
+                        "Bkm src": r.market_source_type,
+                    })
+
+                st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True)
+
+                # ── Divergence table ───────────────────────────────────────────────
+                st.subheader("Divergence Table (model - market)")
+                st.caption(
+                    "Positive divergence = model assigns more probability than market. "
+                    "Negative = model assigns less. Signed, not absolute."
+                )
+
+                div_rows = []
+                for r in market_results:
+                    flag = "YES" if abs(r.largest_divergence_value) >= 0.05 else ""
+                    div_rows.append({
+                        "Match": f"{r.team_a} vs {r.team_b}",
+                        "d(Home)": f"{r.home_divergence:+.3f}",
+                        "d(Draw)": f"{r.draw_divergence:+.3f}",
+                        "d(Away)": f"{r.away_divergence:+.3f}",
+                        "Largest div outcome": r.largest_divergence_outcome.replace("_", " "),
+                        "Div value": f"{r.largest_divergence_value:+.3f}",
+                        ">5pp": flag,
+                    })
+
+                st.dataframe(pd.DataFrame(div_rows), use_container_width=True)
+
+                if market_summary.high_divergence_count > 0:
+                    st.markdown(
+                        f"**{market_summary.high_divergence_count} match(es)** where model and market "
+                        f"disagree by >5 percentage points on at least one outcome. "
+                        f"On those matches: model was closer in "
+                        f"**{market_summary.model_wins_high_divergence}**, "
+                        f"market was closer in "
+                        f"**{market_summary.market_wins_high_divergence}**."
+                    )
 
     # ══════════════════════════════════════════════════════════════════════════════
 
@@ -1782,9 +1783,6 @@ with tab_tournament:
             f"Top-5: {conc.top5:.1%}  Entropy: {conc.entropy:.2f} bits"
         )
 
-        # ── Results table ──────────────────────────────────────────────────
-        st.subheader("Tournament Probability Table")
-
         all_tour_teams = set(mc.reach_r16) | set(mc.win_tournament)
         rows = []
         for team in sorted(all_tour_teams):
@@ -1800,21 +1798,33 @@ with tab_tournament:
         # Sort by win probability descending
         rows.sort(key=lambda r: -float(r["Win Tournament"].rstrip("%")))
 
-        tour_df = pd.DataFrame(rows)
-        st.dataframe(tour_df, use_container_width=True, hide_index=True)
-
-        # ── Top 5 favourites ──────────────────────────────────────────────
-        st.subheader("Top 5 Tournament Favourites")
+        # ── Top 5 favourites (cards) ───────────────────────────────────────
+        st.subheader("🏆 Top 5 Tournament Favourites")
         top5_rows = rows[:5]
         c1, c2, c3, c4, c5 = st.columns(5)
         for col, row in zip([c1, c2, c3, c4, c5], top5_rows):
             with col:
-                st.metric(row["Team"], row["Win Tournament"])
+                with st.container(border=True):
+                    st.metric(row["Team"], row["Win Tournament"])
+
+        # ── Top 10 bar chart ────────────────────────────────────────────────
+        st.subheader("📊 Top 10 Win Probability")
+        top10_rows = rows[:10]
+        chart_df = pd.DataFrame({
+            "Team": [r["Team"] for r in top10_rows],
+            "Win Probability": [float(r["Win Tournament"].rstrip("%")) for r in top10_rows],
+        }).set_index("Team")
+        st.bar_chart(chart_df, use_container_width=True)
 
         st.caption(
             f"Based on {mc.n_simulations:,} Monte Carlo simulations. "
             "Probabilities reflect model uncertainty — not guaranteed outcomes."
         )
+
+        # ── Full results table (advanced) ──────────────────────────────────
+        with st.expander("📋 Full Tournament Probability Table (all teams)", expanded=False):
+            tour_df = pd.DataFrame(rows)
+            st.dataframe(tour_df, use_container_width=True, hide_index=True)
     if mc is None:
         st.markdown(
             "Click **Run Tournament Simulation** to generate probability estimates. "
