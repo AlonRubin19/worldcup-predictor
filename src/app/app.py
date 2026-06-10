@@ -156,13 +156,18 @@ if st.session_state.get("refresh_summary"):
             width="stretch",
         )
         if _cov:
-            st.markdown("**Full 32-team coverage map** (no team silently dropped):")
+            st.markdown(
+                "**Full 32-team coverage map** (no team silently dropped). "
+                "Only **verified** mappings (data/api_team_mapping_verified.csv) "
+                "are used for live squad/injury/player-stats data — unverified "
+                "teams always use the baseline model."
+            )
             st.dataframe(
                 [
                     {
                         "Team": r.team,
                         "API team ID": r.api_team_id if r.api_team_id is not None else "—",
-                        "Mapped": "✅" if r.mapped else "❌ not mapped",
+                        "Mapping": "✅ verified" if r.mapped else "⚠️ unverified — baseline model only",
                         "Squad available": "✅" if r.squad_available else "—",
                         "Injuries available": "✅" if r.injuries_available else "—",
                         "Player stats available": "✅" if r.player_stats_available else "—",

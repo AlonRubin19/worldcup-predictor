@@ -1,0 +1,33 @@
+internal_team,api_team_name,api_team_id,country,match_method,confidence,verified,notes
+Argentina,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Australia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Belgium,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Brazil,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Cameroon,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Canada,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Costa Rica,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Croatia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Denmark,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Ecuador,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+England,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+France,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Germany,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Ghana,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Iran,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Japan,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Mexico,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Morocco,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Netherlands,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Poland,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Portugal,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Qatar,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Saudi Arabia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Senegal,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Serbia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+South Korea,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Spain,Spain,9,Spain,prior_session_validation,high,True,Validated live in a prior session.
+Switzerland,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Tunisia,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+USA,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Uruguay,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.
+Wales,,,,none,low,False,No API_FOOTBALL_KEY configured -- not verified.

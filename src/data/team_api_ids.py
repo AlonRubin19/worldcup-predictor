@@ -1,59 +1,53 @@
-"""team_api_ids.py — best-effort mapping of team name -> API-Football team id.
+"""team_api_ids.py — verified API-Football team-id mapping.
 
-Used by the refresh pipeline to know which teams can have live squad/injury/
-player-statistics data pulled. IDs are unverified except for Spain/Norway
-(validated live in Sprint 17) -- if an id is wrong, the API call returns
-empty and the loaders fall back gracefully with an explicit "Fallback"
-source label, so an incorrect id never breaks anything, it just means that
-team shows as fallback data.
-
-Coverage: all 32 teams appearing in data/wc2026_fixtures.csv, plus Norway
-(used in Golden Boot examples). Teams with no plausible API-Football id are
-intentionally omitted from TEAM_API_IDS (not silently dropped -- they show
-up as `mapped=False` in the coverage table built by
-src.data.team_coverage.build_coverage_table).
+Loads from data/api_team_mapping_verified.csv, produced by
+scripts/verify_api_team_ids.py. ONLY rows with verified=True are exposed via
+TEAM_API_IDS / load_verified_team_ids() -- unverified or duplicate mappings
+are excluded so live squad/injury/player-stats data is never fetched using a
+guessed team id. Teams without a verified mapping fall back to the baseline
+(non-live) model.
 """
 
 from __future__ import annotations
 
-TEAM_API_IDS: dict[str, int] = {
-    "Argentina": 26,
-    "Australia": 25,
-    "Belgium": 1,
-    "Brazil": 6,
-    "Cameroon": 21,
-    "Canada": 22,
-    "Costa Rica": 2382,
-    "Croatia": 3,
-    "Denmark": 21071,
-    "Ecuador": 2386,
-    "England": 10,
-    "France": 2,
-    "Germany": 25,
-    "Ghana": 1530,
-    "Iran": 7,
-    "Japan": 12,
-    "Mexico": 16,
-    "Morocco": 31,
-    "Netherlands": 1118,
-    "Norway": 1090,
-    "Poland": 24,
-    "Portugal": 27,
-    "Qatar": 18,
-    "Saudi Arabia": 24,
-    "Senegal": 14,
-    "Serbia": 14127,
-    "South Korea": 17,
-    "Spain": 9,
-    "Switzerland": 15,
-    "Tunisia": 28,
-    "USA": 28,
-    "Uruguay": 7,
-    "Wales": 14125,
-}
+import csv
+from pathlib import Path
 
-# Common alternate names returned by API-Football for some of these teams.
-TEAM_API_ALIASES: dict[str, str] = {
-    "USA": "United States",
-    "South Korea": "Korea Republic",
-}
+_DEFAULT_MAPPING_PATH = Path(__file__).parent.parent.parent / "data" / "api_team_mapping_verified.csv"
+
+
+def load_verified_team_ids(path: Path | None = None) -> dict[str, int]:
+    """Return {internal_team_name: api_team_id} for verified=True rows only.
+
+    Returns an empty dict (not an error) if the mapping file doesn't exist --
+    callers must treat that as "no live data available for any team".
+    """
+    p = path if path is not None else _DEFAULT_MAPPING_PATH
+    if not Path(p).exists():
+        return {}
+
+    result: dict[str, int] = {}
+    with open(p, newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            verified = str(row.get("verified", "")).strip().lower() in ("true", "1", "yes")
+            if not verified:
+                continue
+            api_id = row.get("api_team_id", "")
+            if api_id == "":
+                continue
+            result[row["internal_team"]] = int(api_id)
+    return result
+
+
+def load_mapping_rows(path: Path | None = None) -> list[dict]:
+    """Return all rows (verified and unverified) from the mapping CSV."""
+    p = path if path is not None else _DEFAULT_MAPPING_PATH
+    if not Path(p).exists():
+        return []
+    with open(p, newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+# Backwards-compatible module-level dict, computed at import time from the
+# verified mapping file. Only verified=True teams appear here.
+TEAM_API_IDS: dict[str, int] = load_verified_team_ids()
