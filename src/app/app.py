@@ -969,15 +969,18 @@ with tab_predictor:
         if team_b not in _strength:
             st.warning(f"No MLE params for {team_b} — using defaults.")
 
-        from src.models.strength_adjusted_xg import calculate_strength_adjusted_xg as _sxg
-        from src.models.xg_calibration import calibrate_xg as _cal
-        _raw_a, _raw_b = _sxg(snap_a.elo, snap_b.elo, par_a, par_b, snap_a.ppg, snap_b.ppg)
-        auto_xg_a, auto_xg_b = _cal(_raw_a), _cal(_raw_b)
+        from src.models.match_simulator import compute_match_xg as _compute_match_xg
+        _sim_data = _compute_match_xg(team_a, team_b, snaps=_snapshots, params=_strength)
+        auto_xg_a, auto_xg_b = _sim_data["xg_a"], _sim_data["xg_b"]
 
         _expl_elo_a, _expl_elo_b = snap_a.elo, snap_b.elo
         _expl_alpha_a, _expl_alpha_b = par_a.alpha_attack, par_b.alpha_attack
         _expl_beta_a,  _expl_beta_b  = par_a.beta_defense,  par_b.beta_defense
-        _model_label = "ELO + MLE + Dixon-Coles (calibrated, rho=-0.13)"
+        _model_label = "ELO + MLE + Dixon-Coles + FM squad strength (calibrated, rho=-0.13)"
+        if _sim_data["fm_used"]:
+            _model_label += " — FM data applied"
+        else:
+            _model_label += " — FM data unavailable for one or both teams"
 
     else:
         _ra = all_ratings.get(team_a, _AVG_RATINGS)
@@ -1122,6 +1125,28 @@ with tab_predictor:
         st.markdown(_chip_html, unsafe_allow_html=True)
     else:
         st.caption("No high-signal markets identified for this match.")
+
+    # ── Collapsible: FM squad strength edge ─────────────────────────────────────
+    with st.expander("🎮 FM Squad Strength", expanded=False):
+        if _sim_data["fm_used"]:
+            ea, eb = _sim_data["fm_edges_a"], _sim_data["fm_edges_b"]
+            st.dataframe(pd.DataFrame({
+                "Metric": ["Overall", "Attack edge", "Midfield edge", "Depth edge", "xG adjustment"],
+                team_a: [
+                    f"{ea.overall_a:.1f}", f"{ea.attack_edge:+.1f}",
+                    f"{ea.midfield_edge:+.1f}", f"{ea.depth_edge:+.1f}",
+                    f"{ea.adjustment:+.2f}",
+                ],
+                team_b: [
+                    f"{eb.overall_a:.1f}", f"{eb.attack_edge:+.1f}",
+                    f"{eb.midfield_edge:+.1f}", f"{eb.depth_edge:+.1f}",
+                    f"{eb.adjustment:+.2f}",
+                ],
+            }), use_container_width=True, hide_index=True)
+            st.caption(f"**{team_a} top players:** {_sim_data['fm_a'].top_players}")
+            st.caption(f"**{team_b} top players:** {_sim_data['fm_b'].top_players}")
+        else:
+            st.info("FM squad data unavailable for one or both teams.")
 
     # ── Collapsible: Squad strength & injuries ────────────────────────────────
     with st.expander("👥 Squad Strength & Injuries", expanded=False):
