@@ -35,22 +35,27 @@ from src.data.market_odds_loader import get_market_odds_for_match, MarketOddsRes
 from src.models.strength_adjusted_xg import calculate_strength_adjusted_xg
 from src.models.xg_calibration import calibrate_xg
 from src.models.dixon_coles import predict_dixon_coles, build_dc_matrix
+from src.models.prediction_config import PredictionConfig, DEFAULT_CONFIG, get_scenario_config
 
-DEFAULT_RHO = -0.13
+DEFAULT_RHO = DEFAULT_CONFIG.rho
 
-# Base xG range (per team, before adjustments).
-FM_BASE_XG = 1.25
+# Backwards-compatible aliases for the central config values.
+FM_BASE_XG = DEFAULT_CONFIG.fm_base_xg
+MIN_XG = DEFAULT_CONFIG.min_xg
+MAX_XG_NORMAL = DEFAULT_CONFIG.max_xg
+FM_ADJ_CAP_NORMAL = DEFAULT_CONFIG.fm_adjustment_cap
+FM_ADJ_CAP_EXTREME = DEFAULT_CONFIG.fm_adjustment_cap_extreme
+EXTREME_OVERALL_GAP = DEFAULT_CONFIG.extreme_overall_gap
 
-# xG caps.
-MIN_XG = 0.25
-MAX_XG_NORMAL = 3.20
-FM_ADJ_CAP_NORMAL = 0.45
-FM_ADJ_CAP_EXTREME = 0.65
-EXTREME_OVERALL_GAP = 15.0  # FM overall-rating gap above which the wider cap applies
-
-# Blend weights.
-WEIGHT_WITH_ODDS = {"market": 0.55, "fm": 0.30, "existing": 0.15}
-WEIGHT_NO_ODDS = {"fm": 0.60, "existing": 0.40}
+WEIGHT_WITH_ODDS = {
+    "market": DEFAULT_CONFIG.odds_weight,
+    "fm": DEFAULT_CONFIG.fm_weight_with_odds,
+    "existing": DEFAULT_CONFIG.form_weight_with_odds,
+}
+WEIGHT_NO_ODDS = {
+    "fm": DEFAULT_CONFIG.fm_weight_no_odds,
+    "existing": DEFAULT_CONFIG.form_weight_no_odds,
+}
 
 _DEFAULT_SNAP = TeamSnapshot(elo=1800.0, ppg=1.5)
 _DEFAULT_PAR = StrengthParams(alpha_attack=1.0, beta_defense=1.0, matches_used=0)
@@ -165,43 +170,93 @@ def _full_scorelines(matrix: np.ndarray, max_score: int = 5) -> list[tuple[int, 
     return lines
 
 
-def _select_recommended_score(
+@dataclass
+class ScoreRecommendations:
+    raw_top_score: str
+    recommended_exact_score: str
+    conservative_exact_score: str
+    expressive_exact_score: str
+    riskier_exact_score: str
+    reason: str
+    reason_codes: list[str]
+
+
+def select_score_recommendations(
     team_a: str,
     team_b: str,
     scorelines: list[tuple[int, int, float]],
     win_a: float,
     draw: float,
     win_b: float,
-) -> tuple[str, str, str]:
-    """Return (raw_top_score, recommended_exact_score, reason)."""
+    xg_a: float | None = None,
+    xg_b: float | None = None,
+    config: PredictionConfig = DEFAULT_CONFIG,
+) -> ScoreRecommendations:
+    """Practical exact-score recommendation layer.
+
+    The raw score matrix stays mathematically untouched; this layer only
+    decides which scoreline to *recommend* given the W/D/L distribution,
+    top-score clustering, and xG fit — plus conservative / expressive /
+    riskier alternatives.
+    """
+    cfg = config
     raw_top = scorelines[0]
     raw_top_score = f"{raw_top[0]}-{raw_top[1]}"
+    reason_codes: list[str] = []
 
     fav = "a" if win_a >= win_b else "b"
     fav_team = team_a if fav == "a" else team_b
     fav_prob = win_a if fav == "a" else win_b
+    dog_prob = win_b if fav == "a" else win_a
     gap = fav_prob - draw
 
-    win_candidates = [s for s in scorelines if (s[0] > s[1] if fav == "a" else s[1] > s[0])]
-    draw_candidates = [s for s in scorelines if s[0] == s[1]]
-    best_win = max(win_candidates, key=lambda s: s[2]) if win_candidates else None
-    best_draw = max(draw_candidates, key=lambda s: s[2]) if draw_candidates else None
+    def is_fav_win(s):
+        return s[0] > s[1] if fav == "a" else s[1] > s[0]
+
+    def is_dog_win(s):
+        return s[1] > s[0] if fav == "a" else s[0] > s[1]
+
+    win_candidates = sorted((s for s in scorelines if is_fav_win(s)), key=lambda s: -s[2])
+    dog_candidates = sorted((s for s in scorelines if is_dog_win(s)), key=lambda s: -s[2])
+    draw_candidates = sorted((s for s in scorelines if s[0] == s[1]), key=lambda s: -s[2])
+    best_win = win_candidates[0] if win_candidates else None
+    best_draw = draw_candidates[0] if draw_candidates else None
+
+    top5 = scorelines[:5]
+    cluster_count = sum(1 for s in top5 if is_fav_win(s))
 
     recommend_favourite = False
-    if best_win and fav_prob >= 0.50 and gap >= 0.10:
+    if best_win and fav_prob >= cfg.favourite_min_win_prob and gap >= cfg.favourite_draw_gap:
+        reason_codes.append("favorite_win_probability_above_threshold")
+        reason_codes.append("draw_gap_above_threshold")
         ratio = best_win[2] / raw_top[2] if raw_top[2] else 0.0
-        top5 = scorelines[:5]
-        cluster_count = sum(1 for s in top5 if (s[0] > s[1] if fav == "a" else s[1] > s[0]))
 
-        if fav_prob >= 0.60:
+        if fav_prob >= cfg.dominant_favourite_prob:
             recommend_favourite = True
-        elif fav_prob >= 0.55:
-            blocked = draw >= 0.30 or (best_draw is not None and best_draw[2] >= 1.50 * best_win[2])
+            reason_codes.append("dominant_favorite")
+        elif fav_prob >= cfg.strong_favourite_prob:
+            blocked = draw >= cfg.draw_block_prob or (
+                best_draw is not None and best_draw[2] >= cfg.draw_score_ratio_block * best_win[2]
+            )
             recommend_favourite = not blocked
+            if blocked:
+                reason_codes.append("draw_signal_blocks_favorite_score")
         else:
-            if ratio >= 0.70 or cluster_count >= 3:
-                blocked = draw >= 0.31 or (best_draw is not None and best_draw[2] >= 1.35 * best_win[2])
+            if ratio >= cfg.favourite_score_ratio or cluster_count >= 3:
+                if ratio >= cfg.favourite_score_ratio:
+                    reason_codes.append("best_favorite_score_close_to_raw_top")
+                if cluster_count >= 3:
+                    reason_codes.append("top5_cluster_favors_favorite")
+                blocked = draw >= cfg.draw_block_prob_soft or (
+                    best_draw is not None
+                    and best_draw[2] >= cfg.draw_score_ratio_block_soft * best_win[2]
+                )
                 recommend_favourite = not blocked
+                if blocked:
+                    reason_codes.append("draw_signal_blocks_favorite_score")
+
+    if xg_a is not None and xg_b is not None and abs(xg_a - xg_b) >= 0.50:
+        reason_codes.append("xg_gap_favors_favorite")
 
     if recommend_favourite and best_win:
         recommended = best_win
@@ -221,15 +276,73 @@ def _select_recommended_score(
         recommended = raw_top
         if raw_top[0] == raw_top[1]:
             reason = "Draw is genuinely a likely outcome in the calibrated score matrix."
+            reason_codes.append("draw_genuinely_likely")
         else:
             winner = team_a if raw_top[0] > raw_top[1] else team_b
             reason = (
                 f"{winner} is favoured to win and the top-probability scoreline "
                 f"({raw_top_score}) is consistent with that outcome."
             )
+            reason_codes.append("raw_top_score_already_matches_outcome")
 
-    recommended_score = f"{recommended[0]}-{recommended[1]}"
-    return raw_top_score, recommended_score, reason
+    # ── Alternatives ─────────────────────────────────────────────────────
+    rec_is_win = is_fav_win(recommended)
+
+    # Conservative: lowest-total-goals scoreline of the recommended outcome
+    # type, among candidates within 75% of that outcome's best probability.
+    pool = win_candidates if rec_is_win else draw_candidates
+    near_top = [s for s in pool if pool and s[2] >= 0.75 * pool[0][2]] or pool[:1]
+    conservative = min(near_top, key=lambda s: (s[0] + s[1], -s[2])) if near_top else recommended
+
+    # Expressive: the same-outcome scoreline whose total goals best matches
+    # total xG, among reasonably likely candidates.
+    if xg_a is not None and xg_b is not None and pool:
+        total_xg = xg_a + xg_b
+        likely = [s for s in pool if s[2] >= 0.60 * pool[0][2]] or pool[:1]
+        expressive = min(likely, key=lambda s: (abs((s[0] + s[1]) - total_xg), -s[2]))
+    else:
+        expressive = recommended
+
+    # Riskier: higher-upside alternative — the best underdog-win score when
+    # the underdog has a real chance (>=25%), otherwise the best
+    # higher-margin favourite-win score.
+    if dog_candidates and dog_prob >= 0.25:
+        riskier = dog_candidates[0]
+    elif rec_is_win and win_candidates:
+        rec_margin = abs(recommended[0] - recommended[1])
+        bigger = [s for s in win_candidates if abs(s[0] - s[1]) > rec_margin]
+        riskier = bigger[0] if bigger else win_candidates[0]
+    elif win_candidates:
+        riskier = win_candidates[0]
+    else:
+        riskier = recommended
+
+    fmt = lambda s: f"{s[0]}-{s[1]}"
+    return ScoreRecommendations(
+        raw_top_score=raw_top_score,
+        recommended_exact_score=fmt(recommended),
+        conservative_exact_score=fmt(conservative),
+        expressive_exact_score=fmt(expressive),
+        riskier_exact_score=fmt(riskier),
+        reason=reason,
+        reason_codes=reason_codes,
+    )
+
+
+def _select_recommended_score(
+    team_a: str,
+    team_b: str,
+    scorelines: list[tuple[int, int, float]],
+    win_a: float,
+    draw: float,
+    win_b: float,
+) -> tuple[str, str, str]:
+    """Return (raw_top_score, recommended_exact_score, reason).
+
+    Thin backwards-compatible wrapper around select_score_recommendations.
+    """
+    rec = select_score_recommendations(team_a, team_b, scorelines, win_a, draw, win_b)
+    return rec.raw_top_score, rec.recommended_exact_score, rec.reason
 
 
 def _confidence_label(win_a: float, draw: float, win_b: float) -> str:
@@ -267,6 +380,12 @@ class MatchSimulationResult:
     market_odds: dict | None
     top_players_team1: str
     top_players_team2: str
+    conservative_exact_score: str = ""
+    expressive_exact_score: str = ""
+    riskier_exact_score: str = ""
+    reason_codes: list[str] = field(default_factory=list)
+    scenario: str = "balanced"
+    debug: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -276,6 +395,7 @@ class MonteCarloMatchResult(MatchSimulationResult):
     simulated_draw_probability: float = 0.0
     simulated_team2_win_probability: float = 0.0
     simulated_top_5_exact_scores: list[dict] = field(default_factory=list)
+    simulation_matrix_mismatch: bool = False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -290,6 +410,7 @@ def compute_match_xg(
     fm_data: dict[str, FMTeamStrength] | None = None,
     odds: MarketOddsResult | None = None,
     rho: float = DEFAULT_RHO,
+    config: PredictionConfig = DEFAULT_CONFIG,
 ) -> dict:
     """Compute the final, blended/calibrated xG pair plus all supporting data.
 
@@ -335,9 +456,9 @@ def compute_match_xg(
     # 4. Blend FM + existing (pre-market).
     if fm_used:
         if odds_used:
-            w_fm, w_exist = WEIGHT_WITH_ODDS["fm"], WEIGHT_WITH_ODDS["existing"]
+            w_fm, w_exist = config.fm_weight_with_odds, config.form_weight_with_odds
         else:
-            w_fm, w_exist = WEIGHT_NO_ODDS["fm"], WEIGHT_NO_ODDS["existing"]
+            w_fm, w_exist = config.fm_weight_no_odds, config.form_weight_no_odds
         total = w_fm + w_exist
         pre_xg_a = (w_fm * fm_xg_a + w_exist * existing_xg_a) / total
         pre_xg_b = (w_fm * fm_xg_b + w_exist * existing_xg_b) / total
@@ -350,8 +471,8 @@ def compute_match_xg(
     # 5. Calibrate against market W/D/L, if available.
     if odds_used:
         model_result = predict_dixon_coles(team_a, team_b, pre_xg_a, pre_xg_b, rho=rho)
-        w_mkt = WEIGHT_WITH_ODDS["market"]
-        w_model = WEIGHT_WITH_ODDS["fm"] + WEIGHT_WITH_ODDS["existing"]
+        w_mkt = config.odds_weight
+        w_model = 1.0 - w_mkt
         target_win_a = w_mkt * odds.win_a + w_model * model_result.win_a
         target_draw = w_mkt * odds.draw + w_model * model_result.draw
         target_win_b = w_mkt * odds.win_b + w_model * model_result.win_b
@@ -361,8 +482,15 @@ def compute_match_xg(
     else:
         final_xg_a, final_xg_b = pre_xg_a, pre_xg_b
 
-    final_xg_a = float(np.clip(final_xg_a, MIN_XG, MAX_XG_NORMAL))
-    final_xg_b = float(np.clip(final_xg_b, MIN_XG, MAX_XG_NORMAL))
+    # 6. Scenario gap scaling: compress/widen the xG gap around its mean
+    # (used by conservative / upset-sensitive scenario modes).
+    if config.xg_gap_scale != 1.0:
+        mean_xg = (final_xg_a + final_xg_b) / 2.0
+        final_xg_a = mean_xg + (final_xg_a - mean_xg) * config.xg_gap_scale
+        final_xg_b = mean_xg + (final_xg_b - mean_xg) * config.xg_gap_scale
+
+    final_xg_a = float(np.clip(final_xg_a, config.min_xg, config.max_xg))
+    final_xg_b = float(np.clip(final_xg_b, config.min_xg, config.max_xg))
 
     matrix = build_dc_matrix(final_xg_a, final_xg_b, rho=rho)
     prediction = predict_dixon_coles(team_a, team_b, final_xg_a, final_xg_b, rho=rho)
@@ -385,6 +513,9 @@ def compute_match_xg(
         "existing_xg_b": existing_xg_b,
         "fm_xg_a": fm_xg_a,
         "fm_xg_b": fm_xg_b,
+        "pre_xg_a": pre_xg_a,
+        "pre_xg_b": pre_xg_b,
+        "config": config,
     }
 
 
@@ -424,17 +555,41 @@ def predict_match(
     fm_data: dict[str, FMTeamStrength] | None = None,
     odds: MarketOddsResult | None = None,
     rho: float = DEFAULT_RHO,
+    scenario: str = "balanced",
 ) -> MatchSimulationResult:
     """Full coherent prediction: xG, W/D/L, exact-score table, recommendation."""
-    data = compute_match_xg(team_a, team_b, snaps, params, fm_data, odds, rho)
+    config = get_scenario_config(scenario)
+    data = compute_match_xg(team_a, team_b, snaps, params, fm_data, odds, rho, config=config)
 
-    scorelines = _full_scorelines(data["matrix"], max_score=5)
+    scorelines = _full_scorelines(data["matrix"], max_score=config.score_matrix_max_goals)
     top5 = scorelines[:5]
-    raw_top, recommended, reason = _select_recommended_score(
+    rec = select_score_recommendations(
         team_a, team_b, scorelines, data["win_a"], data["draw"], data["win_b"],
+        xg_a=data["xg_a"], xg_b=data["xg_b"], config=config,
     )
+    raw_top, recommended, reason = rec.raw_top_score, rec.recommended_exact_score, rec.reason
 
     explanation = _build_explanation(team_a, team_b, data, reason)
+
+    debug = {
+        "scenario": scenario,
+        "weights": {
+            "odds": config.odds_weight if data["odds_used"] else 0.0,
+            "fm": (config.fm_weight_with_odds if data["odds_used"] else config.fm_weight_no_odds)
+                  if data["fm_used"] else 0.0,
+            "existing": (config.form_weight_with_odds if data["odds_used"]
+                         else config.form_weight_no_odds) if data["fm_used"] else 1.0,
+        },
+        "existing_xg": [data["existing_xg_a"], data["existing_xg_b"]],
+        "fm_xg": [data["fm_xg_a"], data["fm_xg_b"]],
+        "pre_calibration_xg": [data["pre_xg_a"], data["pre_xg_b"]],
+        "final_xg": [data["xg_a"], data["xg_b"]],
+        "market_implied": (
+            [data["odds"].win_a, data["odds"].draw, data["odds"].win_b]
+            if data["odds_used"] else None
+        ),
+        "reason_codes": rec.reason_codes,
+    }
 
     fm_edges_dict = None
     if data["fm_used"]:
@@ -480,6 +635,12 @@ def predict_match(
         market_odds=market_odds_dict,
         top_players_team1=data["fm_a"].top_players if data["fm_a"] else "",
         top_players_team2=data["fm_b"].top_players if data["fm_b"] else "",
+        conservative_exact_score=rec.conservative_exact_score,
+        expressive_exact_score=rec.expressive_exact_score,
+        riskier_exact_score=rec.riskier_exact_score,
+        reason_codes=rec.reason_codes,
+        scenario=scenario,
+        debug=debug,
     )
 
 
@@ -497,6 +658,7 @@ def simulate_match(
     odds: MarketOddsResult | None = None,
     rho: float = DEFAULT_RHO,
     rng_seed: int | None = None,
+    scenario: str = "balanced",
 ) -> MonteCarloMatchResult:
     """Run n Monte Carlo simulations on top of the final calibrated xG.
 
@@ -506,7 +668,7 @@ def simulate_match(
     perturbation of independent Poisson, so close-but-not-identical results
     are expected).
     """
-    base = predict_match(team_a, team_b, snaps, params, fm_data, odds, rho)
+    base = predict_match(team_a, team_b, snaps, params, fm_data, odds, rho, scenario=scenario)
 
     rng = np.random.default_rng(rng_seed)
     goals_a = rng.poisson(base.expected_goals_team1, size=n)
@@ -524,6 +686,14 @@ def simulate_match(
         key=lambda x: (-x[2], x[0], x[1]),
     )[:5]
 
+    # Flag if Monte Carlo and the analytic matrix disagree by too much
+    # (>6 points on any W/D/L outcome — beyond DC-correction + sampling noise).
+    mismatch = (
+        abs(win_a - base.team1_win_probability) > 0.06
+        or abs(draw - base.draw_probability) > 0.06
+        or abs(win_b - base.team2_win_probability) > 0.06
+    )
+
     return MonteCarloMatchResult(
         **base.__dict__,
         n_simulations=n,
@@ -531,4 +701,5 @@ def simulate_match(
         simulated_draw_probability=draw,
         simulated_team2_win_probability=win_b,
         simulated_top_5_exact_scores=[{"score": f"{a}-{b}", "probability": p} for a, b, p in sim_scores],
+        simulation_matrix_mismatch=mismatch,
     )

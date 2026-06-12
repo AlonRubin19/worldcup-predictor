@@ -45,8 +45,15 @@ def render_scoreline_table(
     top_scorelines: list[tuple[int, int, float]],
     team_a: str,
     team_b: str,
+    recommended: str | None = None,
+    recommendation_reason: str | None = None,
 ) -> None:
-    """Render the scoreline table in the Streamlit app."""
+    """Render the scoreline table in the Streamlit app.
+
+    If `recommended` is given, it is shown as the headline ("Recommended
+    exact score") and the raw matrix-top score is shown as secondary context
+    when it differs.
+    """
     import streamlit as st
     import pandas as pd
 
@@ -55,12 +62,26 @@ def render_scoreline_table(
         return
 
     g_a, g_b, top_prob = top_scorelines[0]
-    st.metric(
-        "Most likely score",
-        f"{g_a} – {g_b}",
-        help=f"Probability: {top_prob:.1%}. Exact scores are low-confidence — "
-             "treat as a stylistic guide, not a prediction.",
-    )
+    raw_score = f"{g_a} – {g_b}"
+    if recommended:
+        st.metric(
+            "Recommended exact score",
+            recommended.replace("-", " – "),
+            help="Practical pick based on the match outcome probabilities, "
+                 "top-score clustering, and xG — not just the single "
+                 "highest-probability scoreline.",
+        )
+        if recommended.replace("-", " – ") != raw_score:
+            st.caption(f"Raw most likely single score: {raw_score} ({top_prob:.1%}).")
+        if recommendation_reason:
+            st.caption(recommendation_reason)
+    else:
+        st.metric(
+            "Most likely score",
+            raw_score,
+            help=f"Probability: {top_prob:.1%}. Exact scores are low-confidence — "
+                 "treat as a stylistic guide, not a prediction.",
+        )
 
     st.markdown("**Top 5 possible scores**")
     rows = format_scoreline_rows(top_scorelines[:5], team_a, team_b)
