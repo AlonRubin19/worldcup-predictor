@@ -251,7 +251,7 @@ if st.session_state.get("refresh_summary"):
                 width="stretch",
             )
 
-tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, tab_overview, tab_board = st.tabs([
+tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, tab_overview, tab_board, tab_sim = st.tabs([
     "🏠 Home",
     "⚽ Match Analyzer",
     "🏆 Tournament",
@@ -260,6 +260,7 @@ tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, t
     "🧪 Model Lab",
     "📋 All Fixtures",
     "📅 Daily Match Board",
+    "🎮 Simulator",
 ])
 
 # ── Shared helpers imported once ──────────────────────────────────────────────
@@ -2138,3 +2139,140 @@ with tab_golden_boot:
             "Engineering validation only — based on placeholder player data for "
             f"{len(set(r.team for r in _gb_results))} teams."
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SIMULATOR TAB — coherent match simulation (FM strength + odds + Monte Carlo)
+# ══════════════════════════════════════════════════════════════════════════════
+with tab_sim:
+    st.markdown(
+        "Run a full Monte Carlo match simulation combining bookmaker odds (when "
+        "available), the ELO/MLE/Dixon-Coles model, and Football Manager squad "
+        "strength — with a coherent exact-score recommendation."
+    )
+
+    from src.models.match_simulator import simulate_match as _sim_match
+    from src.tournament.group_simulation import simulate_group_stage as _sim_group_stage
+
+    _WC2026_FIXTURE_PATH = Path(__file__).parent.parent.parent / "data" / "world_cup_2026_fixtures.csv"
+    _sim_fixtures = [f for f in load_fixtures(_WC2026_FIXTURE_PATH) if f.stage == "group"]
+    _sim_labels = [f"{f.team_a} vs {f.team_b}  ({f.date}, Group {f.group})" for f in _sim_fixtures]
+    _sim_idx = st.selectbox(
+        "Select fixture", options=range(len(_sim_fixtures)),
+        format_func=lambda i: _sim_labels[i], key="sim_fixture_select",
+    )
+    _sim_fixture = _sim_fixtures[_sim_idx]
+
+    if st.button("▶️ Run Simulation", key="run_match_simulation"):
+        with st.spinner("Running 10,000 simulations..."):
+            _sim_result = _sim_match(_sim_fixture.team_a, _sim_fixture.team_b, n=10_000)
+        st.session_state["sim_result"] = _sim_result
+
+    _sim_result = st.session_state.get("sim_result")
+    if _sim_result is not None and _sim_result.team1 == _sim_fixture.team_a and _sim_result.team2 == _sim_fixture.team_b:
+        st.markdown("---")
+        st.markdown(f"### {_sim_result.team1} vs {_sim_result.team2}")
+
+        _sc1, _sc2, _sc3 = st.columns(3)
+        with _sc1:
+            st.metric(f"{_sim_result.team1} win", f"{_sim_result.team1_win_probability:.0%}")
+        with _sc2:
+            st.metric("Draw", f"{_sim_result.draw_probability:.0%}")
+        with _sc3:
+            st.metric(f"{_sim_result.team2} win", f"{_sim_result.team2_win_probability:.0%}")
+
+        _sg1, _sg2 = st.columns(2)
+        with _sg1:
+            st.metric(f"Expected goals — {_sim_result.team1}", f"{_sim_result.expected_goals_team1:.2f}")
+        with _sg2:
+            st.metric(f"Expected goals — {_sim_result.team2}", f"{_sim_result.expected_goals_team2:.2f}")
+
+        _ra, _rb = _sim_result.recommended_exact_score.split("-")
+        st.success(
+            f"**Recommended exact score: {_sim_result.team1} {_ra} - {_rb} {_sim_result.team2}** "
+            f"(confidence: {_sim_result.confidence})"
+        )
+        if _sim_result.recommended_exact_score != _sim_result.raw_top_score:
+            st.caption(f"Raw top score from the matrix was {_sim_result.raw_top_score}.")
+
+        st.markdown("**Top 5 exact scores**")
+        st.dataframe(pd.DataFrame([
+            {"Score": s["score"], "Probability": f"{s['probability']:.1%}"}
+            for s in _sim_result.top_5_exact_scores
+        ]), use_container_width=True, hide_index=True)
+
+        with st.expander("🎮 FM Squad Strength Edge", expanded=False):
+            if _sim_result.fm_used and _sim_result.fm_edges:
+                e = _sim_result.fm_edges
+                st.dataframe(pd.DataFrame({
+                    "Metric": ["Overall", "Attack edge", "Midfield edge", "Depth edge", "xG adjustment"],
+                    _sim_result.team1: [
+                        f"{e['team1_overall']:.1f}", f"{e['attack_edge_team1']:+.1f}",
+                        f"{e['midfield_edge_team1']:+.1f}", f"{e['depth_edge_team1']:+.1f}",
+                        f"{e['team1_xg_adjustment']:+.2f}",
+                    ],
+                    _sim_result.team2: [
+                        f"{e['team2_overall']:.1f}", f"{e['attack_edge_team2']:+.1f}",
+                        f"{e['midfield_edge_team2']:+.1f}", f"{e['depth_edge_team2']:+.1f}",
+                        f"{e['team2_xg_adjustment']:+.2f}",
+                    ],
+                }), use_container_width=True, hide_index=True)
+                st.caption(f"**{_sim_result.team1} top players:** {_sim_result.top_players_team1}")
+                st.caption(f"**{_sim_result.team2} top players:** {_sim_result.top_players_team2}")
+            else:
+                st.info("FM squad data unavailable for one or both teams.")
+
+        with st.expander("📊 Bookmaker Odds Used", expanded=False):
+            if _sim_result.odds_used and _sim_result.market_odds:
+                mo = _sim_result.market_odds
+                st.write(
+                    f"Market implied: {mo['win_a']:.1%} / {mo['draw']:.1%} / {mo['win_b']:.1%} "
+                    f"(bookmaker: {mo['bookmaker']})"
+                )
+            else:
+                st.info("No research-valid bookmaker odds available for this fixture.")
+
+        with st.expander("🎲 Monte Carlo (10,000 sims) vs analytic matrix", expanded=False):
+            st.dataframe(pd.DataFrame({
+                "Outcome": [f"{_sim_result.team1} Win", "Draw", f"{_sim_result.team2} Win"],
+                "Analytic (score matrix)": [
+                    f"{_sim_result.team1_win_probability:.1%}",
+                    f"{_sim_result.draw_probability:.1%}",
+                    f"{_sim_result.team2_win_probability:.1%}",
+                ],
+                "Monte Carlo (10k sims)": [
+                    f"{_sim_result.simulated_team1_win_probability:.1%}",
+                    f"{_sim_result.simulated_draw_probability:.1%}",
+                    f"{_sim_result.simulated_team2_win_probability:.1%}",
+                ],
+            }), use_container_width=True, hide_index=True)
+
+        st.markdown("**Explanation**")
+        st.write(_sim_result.explanation)
+
+    st.markdown("---")
+    st.subheader("Group Stage Simulation")
+    st.caption("Simulates all 72 WC2026 group fixtures using the same engine and builds predicted group tables.")
+
+    if st.button("▶️ Run All Group Stage Simulations", key="run_group_simulation"):
+        with st.spinner("Simulating all group-stage fixtures..."):
+            st.session_state["group_sim_result"] = _sim_group_stage()
+
+    _group_sim = st.session_state.get("group_sim_result")
+    if _group_sim is not None:
+        st.success(
+            f"Simulated {len(_group_sim.fixture_results)} fixtures across "
+            f"{len(_group_sim.group_tables)} groups."
+        )
+        _grp_cols = st.columns(3)
+        for _i, (_g, _table) in enumerate(sorted(_group_sim.group_tables.items())):
+            with _grp_cols[_i % 3]:
+                st.markdown(f"**Group {_g}**")
+                st.dataframe(pd.DataFrame([
+                    {"Team": s.team, "Pts": s.points, "GD": s.goal_diff, "GF": s.goals_for}
+                    for s in _table
+                ]), use_container_width=True, hide_index=True)
+
+        if _group_sim.qualified:
+            st.markdown("**Most likely qualifiers (Round of 32)**")
+            st.write(", ".join(sorted(_group_sim.qualified)))
