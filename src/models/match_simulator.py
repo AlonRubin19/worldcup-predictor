@@ -177,47 +177,56 @@ def _select_recommended_score(
     raw_top = scorelines[0]
     raw_top_score = f"{raw_top[0]}-{raw_top[1]}"
 
-    recommended = raw_top
-    reason = "Highest-probability scoreline in the calibrated score matrix."
+    fav = "a" if win_a >= win_b else "b"
+    fav_team = team_a if fav == "a" else team_b
+    fav_prob = win_a if fav == "a" else win_b
+    gap = fav_prob - draw
 
-    if raw_top[0] == raw_top[1]:
-        draw_p = raw_top[2]
-        favourite, threshold_team = None, None
-        if win_a >= 0.55:
-            favourite, threshold_team = "a", team_a
-        elif win_b >= 0.55:
-            favourite, threshold_team = "b", team_b
+    win_candidates = [s for s in scorelines if (s[0] > s[1] if fav == "a" else s[1] > s[0])]
+    draw_candidates = [s for s in scorelines if s[0] == s[1]]
+    best_win = max(win_candidates, key=lambda s: s[2]) if win_candidates else None
+    best_draw = max(draw_candidates, key=lambda s: s[2]) if draw_candidates else None
 
-        if favourite == "a":
-            candidates = [s for s in scorelines if s[0] > s[1]]
-        elif favourite == "b":
-            candidates = [s for s in scorelines if s[1] > s[0]]
+    recommend_favourite = False
+    if best_win and fav_prob >= 0.50 and gap >= 0.10:
+        ratio = best_win[2] / raw_top[2] if raw_top[2] else 0.0
+        top5 = scorelines[:5]
+        cluster_count = sum(1 for s in top5 if (s[0] > s[1] if fav == "a" else s[1] > s[0]))
+
+        if fav_prob >= 0.60:
+            recommend_favourite = True
+        elif fav_prob >= 0.55:
+            blocked = draw >= 0.30 or (best_draw is not None and best_draw[2] >= 1.50 * best_win[2])
+            recommend_favourite = not blocked
         else:
-            candidates = []
+            if ratio >= 0.70 or cluster_count >= 3:
+                blocked = draw >= 0.31 or (best_draw is not None and best_draw[2] >= 1.35 * best_win[2])
+                recommend_favourite = not blocked
 
-        if candidates:
-            best_win = max(candidates, key=lambda s: s[2])
-            # A team with >=55% win probability is, by definition, more likely
-            # to win than to draw -- never recommend the draw scoreline here,
-            # regardless of how close the top winning scoreline's probability
-            # is to the top draw scoreline's probability.
-            recommended = best_win
+    if recommend_favourite and best_win:
+        recommended = best_win
+        if raw_top[0] == raw_top[1]:
             reason = (
-                f"{threshold_team} win probability is "
-                f"{(win_a if favourite == 'a' else win_b):.0%}, which exceeds the draw "
-                f"probability ({draw:.0%}); the best winning scoreline "
-                f"({best_win[0]}-{best_win[1]}) is recommended instead of the top "
-                f"draw scoreline ({raw_top_score})."
+                f"{fav_team} win probability is {fav_prob:.0%} (draw {draw:.0%}); although "
+                f"{raw_top_score} is the single highest-probability scoreline in the matrix, "
+                f"{fav_team}-win outcomes dominate, so {best_win[0]}-{best_win[1]} is "
+                f"recommended instead of the top draw scoreline ({raw_top_score})."
             )
-
-        if recommended is raw_top:
-            reason = "Draw is genuinely the most likely outcome in the calibrated score matrix."
+        else:
+            reason = (
+                f"{fav_team} is favoured to win and {best_win[0]}-{best_win[1]} is the "
+                f"best-fitting winning scoreline."
+            )
     else:
-        winner = team_a if raw_top[0] > raw_top[1] else team_b
-        reason = (
-            f"{winner} is favoured to win and the top-probability scoreline "
-            f"({raw_top_score}) is consistent with that outcome."
-        )
+        recommended = raw_top
+        if raw_top[0] == raw_top[1]:
+            reason = "Draw is genuinely a likely outcome in the calibrated score matrix."
+        else:
+            winner = team_a if raw_top[0] > raw_top[1] else team_b
+            reason = (
+                f"{winner} is favoured to win and the top-probability scoreline "
+                f"({raw_top_score}) is consistent with that outcome."
+            )
 
     recommended_score = f"{recommended[0]}-{recommended[1]}"
     return raw_top_score, recommended_score, reason
