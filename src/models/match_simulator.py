@@ -197,14 +197,18 @@ def _select_recommended_score(
 
         if candidates:
             best_win = max(candidates, key=lambda s: s[2])
-            if best_win[2] >= 0.85 * draw_p:
-                recommended = best_win
-                reason = (
-                    f"{threshold_team} win probability is "
-                    f"{(win_a if favourite == 'a' else win_b):.0%}; the best winning "
-                    f"scoreline ({best_win[0]}-{best_win[1]}) is within 15% of the top "
-                    f"draw scoreline ({raw_top_score}), so it is preferred over the draw."
-                )
+            # A team with >=55% win probability is, by definition, more likely
+            # to win than to draw -- never recommend the draw scoreline here,
+            # regardless of how close the top winning scoreline's probability
+            # is to the top draw scoreline's probability.
+            recommended = best_win
+            reason = (
+                f"{threshold_team} win probability is "
+                f"{(win_a if favourite == 'a' else win_b):.0%}, which exceeds the draw "
+                f"probability ({draw:.0%}); the best winning scoreline "
+                f"({best_win[0]}-{best_win[1]}) is recommended instead of the top "
+                f"draw scoreline ({raw_top_score})."
+            )
 
         if recommended is raw_top:
             reason = "Draw is genuinely the most likely outcome in the calibrated score matrix."
