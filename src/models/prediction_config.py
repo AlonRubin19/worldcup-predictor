@@ -41,12 +41,15 @@ class PredictionConfig:
     # Recommendation thresholds (see select_score_recommendations).
     favourite_min_win_prob: float = 0.50
     favourite_draw_gap: float = 0.10
+    # Modest favourite: below 50% but clearly the most likely outcome.
+    modest_favourite_prob: float = 0.42
+    modest_favourite_gap: float = 0.15
     strong_favourite_prob: float = 0.55
     dominant_favourite_prob: float = 0.60
     draw_block_prob: float = 0.30
     draw_block_prob_soft: float = 0.31
     draw_score_ratio_block: float = 1.50
-    draw_score_ratio_block_soft: float = 1.35
+    draw_score_ratio_block_soft: float = 1.50
     favourite_score_ratio: float = 0.70
 
     # Simulation.

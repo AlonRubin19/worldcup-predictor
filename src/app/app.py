@@ -298,33 +298,28 @@ def _load_board_model_data():
 
 
 def _build_match_prediction(fixture, snaps, params, board_rv):
-    sa = snaps.get(fixture.team_a, _BOARD_SNAP_DEF)
-    sb = snaps.get(fixture.team_b, _BOARD_SNAP_DEF)
-    pa = params.get(fixture.team_a, _BOARD_PAR_DEF)
-    pb = params.get(fixture.team_b, _BOARD_PAR_DEF)
-    raw_a, raw_b = _sxg_fn(sa.elo, sb.elo, pa, pb, sa.ppg, sb.ppg)
-    xg_a, xg_b  = _cal_fn(raw_a), _cal_fn(raw_b)
-    mat   = build_dc_matrix(xg_a, xg_b, rho=DEFAULT_RHO)
+    # Same FM-blended engine as the Match Analyzer / Prediction Lab, so the
+    # Home cards never disagree with the full analysis.
+    from src.models.match_simulator import (
+        compute_match_xg, _full_scorelines, select_score_recommendations,
+    )
+    data  = compute_match_xg(fixture.team_a, fixture.team_b, snaps=snaps, params=params)
+    xg_a, xg_b = data["xg_a"], data["xg_b"]
+    mat   = data["matrix"]
     bm    = compute_betting_markets(fixture.team_a, fixture.team_b, mat)
-    rv    = _rv_fn(_RVI(team_a=fixture.team_a, team_b=fixture.team_b,
-                        snapshot_a=sa, snapshot_b=sb, params_a=pa, params_b=pb))
     rs    = generate_recommendations(bm, "High", [], board_rv, top_n=1)
     over25 = next((m.probability for m in bm.over_under if "Over 2.5" in m.selection), 0.0)
     btts   = next((m.probability for m in bm.btts if m.selection == "BTTS Yes"), 0.0)
-    if rv.top_scorelines:
-        from src.models.match_simulator import _full_scorelines, select_score_recommendations
-        _rec = select_score_recommendations(
-            fixture.team_a, fixture.team_b, _full_scorelines(mat),
-            rv.win_a, rv.draw, rv.win_b, xg_a=xg_a, xg_b=xg_b,
-        )
-        score = _rec.recommended_exact_score
-    else:
-        score = "?-?"
+    _rec = select_score_recommendations(
+        fixture.team_a, fixture.team_b, _full_scorelines(mat),
+        data["win_a"], data["draw"], data["win_b"], xg_a=xg_a, xg_b=xg_b,
+    )
+    score  = _rec.recommended_exact_score
     sig    = rs.recommendations[0].selection if rs.recommendations else "—"
     sigstr = rs.recommendations[0].signal_strength if rs.recommendations else "Weak"
-    conf   = compute_confidence(rv.win_a, rv.draw, rv.win_b, [])
+    conf   = compute_confidence(data["win_a"], data["draw"], data["win_b"], [])
     return MatchPrediction(
-        win_a=rv.win_a, draw=rv.draw, win_b=rv.win_b,
+        win_a=data["win_a"], draw=data["draw"], win_b=data["win_b"],
         most_likely_score=score, over_25=over25, btts_yes=btts,
         top_signal=sig, top_signal_strength=sigstr,
         confidence_label=conf.label, is_research_valid=board_rv,

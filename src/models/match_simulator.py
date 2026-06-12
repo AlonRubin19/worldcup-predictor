@@ -226,7 +226,11 @@ def select_score_recommendations(
     cluster_count = sum(1 for s in top5 if is_fav_win(s))
 
     recommend_favourite = False
-    if best_win and fav_prob >= cfg.favourite_min_win_prob and gap >= cfg.favourite_draw_gap:
+    qualifies = (
+        (fav_prob >= cfg.favourite_min_win_prob and gap >= cfg.favourite_draw_gap)
+        or (fav_prob >= cfg.modest_favourite_prob and gap >= cfg.modest_favourite_gap)
+    )
+    if best_win and qualifies:
         reason_codes.append("favorite_win_probability_above_threshold")
         reason_codes.append("draw_gap_above_threshold")
         ratio = best_win[2] / raw_top[2] if raw_top[2] else 0.0
