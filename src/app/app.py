@@ -2233,13 +2233,81 @@ with tab_sim:
         ])
 
         with _lab_pred:
-            _sc1, _sc2, _sc3 = st.columns(3)
-            with _sc1:
-                st.metric(f"{_sim_result.team1} win", f"{_sim_result.team1_win_probability:.0%}")
-            with _sc2:
-                st.metric("Draw", f"{_sim_result.draw_probability:.0%}")
-            with _sc3:
-                st.metric(f"{_sim_result.team2} win", f"{_sim_result.team2_win_probability:.0%}")
+            _PROFILE_LABELS = {
+                "very_low_scoring": "Very low scoring",
+                "low_scoring": "Low scoring",
+                "balanced": "Balanced",
+                "open": "Open",
+                "high_scoring": "High scoring",
+                "chaotic": "Chaotic",
+            }
+            _env = _sim_result.goal_environment
+
+            # ── Main prediction card ────────────────────────────────────────
+            _ra, _rb = _sim_result.recommended_exact_score.split("-")
+            st.success(
+                f"### Recommended exact score: {_sim_result.team1} {_ra} – {_rb} {_sim_result.team2}"
+            )
+            _badge_c1, _badge_c2 = st.columns(2)
+            with _badge_c1:
+                st.metric("Confidence", _sim_result.confidence.replace("-", " ").title())
+            with _badge_c2:
+                if _env is not None:
+                    st.metric("Match profile", _PROFILE_LABELS.get(_env.match_goal_profile, _env.match_goal_profile))
+
+            if _sim_result.recommended_exact_score != _sim_result.raw_top_score:
+                st.caption(f"Raw most likely single score: {_sim_result.raw_top_score}")
+
+            st.markdown(f"**Why:** {_sim_result.explanation}")
+
+            # ── Insight / warning messages ──────────────────────────────────
+            if _env is not None:
+                _rec_total = int(_ra) + int(_rb)
+                if _rec_total <= 1 and _env.over_2_5_probability >= 0.55:
+                    st.warning("⚠️ Low-score recommendation conflicts with goal-environment signals.")
+                if _env.match_goal_profile in ("open", "high_scoring", "chaotic"):
+                    st.info("📈 Goal environment supports an open match.")
+                if _env.btts_probability >= 0.50:
+                    st.info("⚽ Both teams to score is supported by the model.")
+            if _sim_result.recommended_exact_score != _sim_result.raw_top_score:
+                st.caption(
+                    "ℹ️ The raw top score is the highest isolated probability, but the "
+                    "recommendation accounts for outcome direction and goal profile."
+                )
+
+            st.markdown("---")
+
+            # ── Outcome probability bars ────────────────────────────────────
+            st.markdown("**Match outcome**")
+            _outcomes = [
+                (f"{_sim_result.team1} win", _sim_result.team1_win_probability),
+                ("Draw", _sim_result.draw_probability),
+                (f"{_sim_result.team2} win", _sim_result.team2_win_probability),
+            ]
+            _max_outcome = max(_outcomes, key=lambda x: x[1])[0]
+            for _label, _prob in _outcomes:
+                _prefix = "**" if _label == _max_outcome else ""
+                st.write(f"{_prefix}{_label}: {_prob:.1%}{_prefix}")
+                st.progress(min(max(_prob, 0.0), 1.0))
+
+            st.markdown("---")
+
+            # ── Goal environment card ───────────────────────────────────────
+            st.markdown("**Goal environment**")
+            if _env is not None:
+                _g1, _g2 = st.columns(2)
+                with _g1:
+                    st.metric("Expected total goals", f"{_env.expected_total_goals:.2f}")
+                    st.metric("Over 1.5", f"{_env.over_1_5_probability:.1%}")
+                    st.metric("Over 2.5", f"{_env.over_2_5_probability:.1%}")
+                with _g2:
+                    st.metric("Over 3.5", f"{_env.over_3_5_probability:.1%}")
+                    st.metric("Both teams to score", f"{_env.btts_probability:.1%}")
+                    st.metric("Match profile", _PROFILE_LABELS.get(_env.match_goal_profile, _env.match_goal_profile))
+                st.progress(min(_env.over_2_5_probability, 1.0), text=f"Over 2.5: {_env.over_2_5_probability:.1%}")
+                st.progress(min(_env.btts_probability, 1.0), text=f"BTTS: {_env.btts_probability:.1%}")
+            else:
+                st.info("Goal environment data unavailable for this match.")
 
             _sg1, _sg2 = st.columns(2)
             with _sg1:
@@ -2247,32 +2315,54 @@ with tab_sim:
             with _sg2:
                 st.metric(f"xG — {_sim_result.team2}", f"{_sim_result.expected_goals_team2:.2f}")
 
-            _ra, _rb = _sim_result.recommended_exact_score.split("-")
-            st.success(
-                f"**Recommended exact score: {_sim_result.team1} {_ra} - {_rb} {_sim_result.team2}** "
-                f"(confidence: {_sim_result.confidence})"
-            )
-            if _sim_result.recommended_exact_score != _sim_result.raw_top_score:
-                st.caption(f"Raw most likely single score: {_sim_result.raw_top_score} — "
-                           "the recommendation differs because the dominant match outcome matters "
-                           "more than one isolated scoreline.")
+            st.markdown("---")
 
-            _alt1, _alt2, _alt3 = st.columns(3)
-            with _alt1:
-                st.metric("🛡️ Conservative", _sim_result.conservative_exact_score)
-            with _alt2:
-                st.metric("🎨 Expressive (xG fit)", _sim_result.expressive_exact_score)
-            with _alt3:
-                st.metric("🎲 Riskier", _sim_result.riskier_exact_score)
+            # ── Score suggestions ───────────────────────────────────────────
+            st.markdown("**Score suggestions**")
+            _suggestions = [
+                ("Recommended", _sim_result.recommended_exact_score),
+                ("Conservative", _sim_result.conservative_exact_score),
+                ("Over goals", _sim_result.over_goals_exact_score),
+                ("BTTS", _sim_result.btts_exact_score),
+                ("Riskier", _sim_result.riskier_exact_score),
+                ("Raw top", _sim_result.raw_top_score),
+            ]
+            _by_score: dict[str, list[str]] = {}
+            for _label, _score in _suggestions:
+                if not _score:
+                    continue
+                _by_score.setdefault(_score, []).append(_label)
 
+            _sugg_cols = st.columns(3)
+            for _i, (_score, _labels) in enumerate(_by_score.items()):
+                with _sugg_cols[_i % 3]:
+                    st.metric(" / ".join(_labels), _score.replace("-", " – "))
+
+            st.markdown("---")
+
+            # ── Top 5 exact scores (secondary) ──────────────────────────────
             st.markdown("**Top 5 exact scores**")
-            st.dataframe(pd.DataFrame([
-                {"Score": s["score"], "Probability": f"{s['probability']:.1%}"}
-                for s in _sim_result.top_5_exact_scores
-            ]), use_container_width=True, hide_index=True)
-
-            st.markdown("**Explanation**")
-            st.write(_sim_result.explanation)
+            _top5_rows = []
+            for s in _sim_result.top_5_exact_scores:
+                _ga, _gb = (int(x) for x in s["score"].split("-"))
+                if _ga > _gb:
+                    _badge = f"{_sim_result.team1} win"
+                elif _gb > _ga:
+                    _badge = f"{_sim_result.team2} win"
+                else:
+                    _badge = "Draw"
+                _tags = []
+                if s["score"] == _sim_result.recommended_exact_score:
+                    _tags.append("Recommended")
+                if s["score"] == _sim_result.raw_top_score:
+                    _tags.append("Raw top")
+                _top5_rows.append({
+                    "Score": s["score"],
+                    "Probability": f"{s['probability']:.1%}",
+                    "Outcome": _badge,
+                    "Tags": ", ".join(_tags),
+                })
+            st.dataframe(pd.DataFrame(_top5_rows), use_container_width=True, hide_index=True)
 
         with _lab_matrix:
             _mx_data = _sim_xg(_sim_result.team1, _sim_result.team2)
@@ -2337,8 +2427,34 @@ with tab_sim:
                 st.warning("Monte Carlo and the analytic matrix disagree by more than 6 points "
                            "on at least one outcome — inspect the model inputs below.")
 
-            st.markdown("**Reason codes**")
+            st.markdown("**Recommendation reason codes**")
             st.code("\n".join(_sim_result.reason_codes) or "(none)")
+
+            st.markdown("**Score recommendation breakdown**")
+            st.json({
+                "raw_top_score": _sim_result.raw_top_score,
+                "recommended_exact_score": _sim_result.recommended_exact_score,
+                "conservative_exact_score": _sim_result.conservative_exact_score,
+                "expressive_exact_score": _sim_result.expressive_exact_score,
+                "over_goals_exact_score": _sim_result.over_goals_exact_score,
+                "btts_exact_score": _sim_result.btts_exact_score,
+                "riskier_exact_score": _sim_result.riskier_exact_score,
+            })
+
+            if _sim_result.goal_environment is not None:
+                st.markdown("**Goal environment**")
+                _ge = _sim_result.goal_environment
+                st.json({
+                    "expected_total_goals": _ge.expected_total_goals,
+                    "over_1_5_probability": _ge.over_1_5_probability,
+                    "over_2_5_probability": _ge.over_2_5_probability,
+                    "over_3_5_probability": _ge.over_3_5_probability,
+                    "under_2_5_probability": _ge.under_2_5_probability,
+                    "btts_probability": _ge.btts_probability,
+                    "clean_sheet_probability_team1": _ge.clean_sheet_probability_team1,
+                    "clean_sheet_probability_team2": _ge.clean_sheet_probability_team2,
+                    "match_goal_profile": _ge.match_goal_profile,
+                })
 
             st.markdown("**Model inputs & xG pipeline**")
             st.json(_sim_result.debug)
