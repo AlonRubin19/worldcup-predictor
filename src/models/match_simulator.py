@@ -36,6 +36,7 @@ from src.models.strength_adjusted_xg import calculate_strength_adjusted_xg
 from src.models.xg_calibration import calibrate_xg
 from src.models.dixon_coles import predict_dixon_coles, build_dc_matrix
 from src.models.prediction_config import PredictionConfig, DEFAULT_CONFIG, get_scenario_config
+from src.models.goal_environment import GoalEnvironment, compute_goal_environment
 
 DEFAULT_RHO = DEFAULT_CONFIG.rho
 
@@ -179,6 +180,8 @@ class ScoreRecommendations:
     riskier_exact_score: str
     reason: str
     reason_codes: list[str]
+    over_goals_exact_score: str = ""
+    btts_exact_score: str = ""
 
 
 def select_score_recommendations(
@@ -191,6 +194,7 @@ def select_score_recommendations(
     xg_a: float | None = None,
     xg_b: float | None = None,
     config: PredictionConfig = DEFAULT_CONFIG,
+    goal_env: GoalEnvironment | None = None,
 ) -> ScoreRecommendations:
     """Practical exact-score recommendation layer.
 
@@ -221,6 +225,61 @@ def select_score_recommendations(
     draw_candidates = sorted((s for s in scorelines if s[0] == s[1]), key=lambda s: -s[2])
     best_win = win_candidates[0] if win_candidates else None
     best_draw = draw_candidates[0] if draw_candidates else None
+
+    # ── Goal-environment-aware re-ranking of favourite-win scorelines ──────
+    # Implements rules A-J: a low-scoring scoreline (e.g. 1-0) should not be
+    # the default favourite pick when the goal environment (expected total
+    # goals, over/under, BTTS) points to an open/high-scoring game.
+    if goal_env is not None and win_candidates:
+        etg = goal_env.expected_total_goals
+        over25 = goal_env.over_2_5_probability
+        btts = goal_env.btts_probability
+        fav_xg = xg_a if fav == "a" else xg_b
+        dog_xg = xg_b if fav == "a" else xg_a
+
+        def _adj_score(s: tuple[int, int, float]) -> float:
+            total = s[0] + s[1]
+            margin = abs(s[0] - s[1])
+            adj = s[2]
+            low_total = total <= 1
+            if low_total:
+                if etg >= 2.75:
+                    adj *= 0.35  # B
+                if over25 >= 0.55:
+                    adj *= 0.40  # A
+                if btts >= 0.50:
+                    adj *= 0.45  # D (penalize 1-0/2-0)
+                if fav_xg is not None and fav_xg >= 2.10:
+                    adj *= 0.45  # I
+            if total in (3, 4):
+                if etg >= 3.00:
+                    adj *= 1.45  # C
+                if over25 >= 0.55 and win_a >= 0.55 or win_b >= 0.55:
+                    adj *= 1.20  # F/J
+            if total >= 2 and min(s[0], s[1]) >= 1:
+                if btts >= 0.50:
+                    adj *= 1.35  # D (promote BTTS scores)
+            if (
+                fav_xg is not None and dog_xg is not None
+                and fav_xg >= 1.75 and dog_xg >= 0.85 and low_total
+            ):
+                adj *= 0.50  # G
+            if (
+                fav_xg is not None and dog_xg is not None
+                and fav_xg >= 1.90 and dog_xg <= 0.75 and total == 2 and margin == 2
+            ):
+                adj *= 1.15  # H (2-0/0-2 type)
+            if (
+                etg >= 2.65 and (fav_prob >= 0.50)
+                and total in (2, 3) and margin <= 2
+            ):
+                adj *= 1.10  # E
+            return adj
+
+        ranked = sorted(win_candidates, key=lambda s: -_adj_score(s))
+        if ranked[0] != best_win:
+            best_win = ranked[0]
+            reason_codes.append("goal_environment_adjusted_score")
 
     top5 = scorelines[:5]
     cluster_count = sum(1 for s in top5 if is_fav_win(s))
@@ -321,6 +380,26 @@ def select_score_recommendations(
     else:
         riskier = recommended
 
+    # Over-goals / BTTS alternative scores (Part 7): best-probability
+    # scoreline with >=3 total goals / with both teams scoring, among all
+    # scorelines (falls back to the recommendation if none qualify).
+    over_goals_candidates = sorted(
+        (s for s in scorelines if s[0] + s[1] >= 3), key=lambda s: -s[2]
+    )
+    over_goals_score = over_goals_candidates[0] if over_goals_candidates else recommended
+
+    btts_candidates = sorted(
+        (s for s in scorelines if s[0] >= 1 and s[1] >= 1), key=lambda s: -s[2]
+    )
+    btts_score = btts_candidates[0] if btts_candidates else recommended
+
+    if goal_env is not None:
+        if goal_env.over_2_5_probability >= 0.55 and recommended[0] + recommended[1] <= 1:
+            reason_codes.append("low_score_conflicts_with_over_goals")
+        if goal_env.btts_probability >= 0.50 and min(recommended[0], recommended[1]) == 0 and recommended[0] != recommended[1]:
+            reason_codes.append("recommendation_conflicts_with_btts")
+        reason_codes.append(f"goal_profile_{goal_env.match_goal_profile}")
+
     fmt = lambda s: f"{s[0]}-{s[1]}"
     return ScoreRecommendations(
         raw_top_score=raw_top_score,
@@ -330,6 +409,8 @@ def select_score_recommendations(
         riskier_exact_score=fmt(riskier),
         reason=reason,
         reason_codes=reason_codes,
+        over_goals_exact_score=fmt(over_goals_score),
+        btts_exact_score=fmt(btts_score),
     )
 
 
@@ -387,8 +468,11 @@ class MatchSimulationResult:
     conservative_exact_score: str = ""
     expressive_exact_score: str = ""
     riskier_exact_score: str = ""
+    over_goals_exact_score: str = ""
+    btts_exact_score: str = ""
     reason_codes: list[str] = field(default_factory=list)
     scenario: str = "balanced"
+    goal_environment: GoalEnvironment | None = None
     debug: dict = field(default_factory=dict)
 
 
@@ -567,9 +651,10 @@ def predict_match(
 
     scorelines = _full_scorelines(data["matrix"], max_score=config.score_matrix_max_goals)
     top5 = scorelines[:5]
+    goal_env = compute_goal_environment(data["matrix"], data["xg_a"], data["xg_b"])
     rec = select_score_recommendations(
         team_a, team_b, scorelines, data["win_a"], data["draw"], data["win_b"],
-        xg_a=data["xg_a"], xg_b=data["xg_b"], config=config,
+        xg_a=data["xg_a"], xg_b=data["xg_b"], config=config, goal_env=goal_env,
     )
     raw_top, recommended, reason = rec.raw_top_score, rec.recommended_exact_score, rec.reason
 
@@ -593,6 +678,14 @@ def predict_match(
             if data["odds_used"] else None
         ),
         "reason_codes": rec.reason_codes,
+        "goal_environment": {
+            "expected_total_goals": goal_env.expected_total_goals,
+            "over_1_5_probability": goal_env.over_1_5_probability,
+            "over_2_5_probability": goal_env.over_2_5_probability,
+            "over_3_5_probability": goal_env.over_3_5_probability,
+            "btts_probability": goal_env.btts_probability,
+            "match_goal_profile": goal_env.match_goal_profile,
+        },
     }
 
     fm_edges_dict = None
@@ -642,8 +735,11 @@ def predict_match(
         conservative_exact_score=rec.conservative_exact_score,
         expressive_exact_score=rec.expressive_exact_score,
         riskier_exact_score=rec.riskier_exact_score,
+        over_goals_exact_score=rec.over_goals_exact_score,
+        btts_exact_score=rec.btts_exact_score,
         reason_codes=rec.reason_codes,
         scenario=scenario,
+        goal_environment=goal_env,
         debug=debug,
     )
 

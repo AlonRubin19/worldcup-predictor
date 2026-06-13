@@ -8,8 +8,11 @@ from src.models.match_simulator import (
     predict_match,
     simulate_match,
     select_score_recommendations,
+    _full_scorelines,
 )
 from src.tournament.group_simulation import simulate_group_stage_mc
+from src.models.dixon_coles import build_dc_matrix
+from src.models.goal_environment import compute_goal_environment
 
 
 # ── Config / scenarios ───────────────────────────────────────────────────────
@@ -139,6 +142,56 @@ def test_simulate_group_stage_mc_structure():
         assert 0.0 <= o.qualification_probability <= 1.0
         assert 0.0 <= o.group_winner_probability <= 1.0
         assert 0.0 <= o.avg_points <= 9.0
+
+
+# ── Goal-environment-aware exact-score recommendation (conservative-bias fixes) ──
+
+def _rec_for(xg_a, xg_b, win_a, draw, win_b):
+    matrix = build_dc_matrix(xg_a, xg_b, rho=-0.13)
+    scorelines = _full_scorelines(matrix)
+    goal_env = compute_goal_environment(matrix, xg_a, xg_b)
+    rec = select_score_recommendations(
+        "A", "B", scorelines, win_a=win_a, draw=draw, win_b=win_b,
+        xg_a=xg_a, xg_b=xg_b, goal_env=goal_env,
+    )
+    return rec, goal_env
+
+
+def test_usa_paraguay_style_open_favourite_not_1_0():
+    rec, env = _rec_for(xg_a=1.95, xg_b=1.05, win_a=0.57, draw=0.244, win_b=0.186)
+    assert env.expected_total_goals >= 2.65
+    assert env.over_2_5_probability >= 0.55
+    assert rec.recommended_exact_score != "1-0"
+    assert rec.recommended_exact_score in ("2-1", "3-1", "2-0", "3-0")
+
+
+def test_brazil_morocco_style_considers_over_goals():
+    rec, env = _rec_for(xg_a=1.74, xg_b=0.99, win_a=0.534, draw=0.266, win_b=0.200)
+    # 1-0 remains a valid conservative pick...
+    assert rec.conservative_exact_score == "1-0"
+    # ...but the over-goals alternative reflects the open goal environment.
+    a, b = (int(x) for x in rec.over_goals_exact_score.split("-"))
+    assert a + b >= 3
+
+
+def test_true_low_scoring_favourite_keeps_1_0():
+    rec, env = _rec_for(xg_a=1.25, xg_b=0.55, win_a=0.53, draw=0.27, win_b=0.20)
+    assert env.expected_total_goals <= 2.10
+    assert env.over_2_5_probability <= 0.35
+    assert env.btts_probability <= 0.35
+    assert rec.recommended_exact_score == "1-0"
+
+
+def test_balanced_draw_keeps_1_1():
+    rec, env = _rec_for(xg_a=1.10, xg_b=1.05, win_a=0.34, draw=0.34, win_b=0.32)
+    assert rec.recommended_exact_score == "1-1"
+
+
+def test_high_scoring_draw_profile_considers_2_2_or_2_1():
+    rec, env = _rec_for(xg_a=1.90, xg_b=1.70, win_a=0.42, draw=0.241, win_b=0.339)
+    assert env.over_2_5_probability >= 0.50
+    assert env.btts_probability >= 0.50
+    assert rec.recommended_exact_score in ("2-2", "2-1", "1-2")
 
 
 def test_simulate_group_stage_mc_probabilities_consistent():
