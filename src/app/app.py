@@ -251,7 +251,8 @@ if st.session_state.get("refresh_summary"):
                 width="stretch",
             )
 
-tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, tab_overview, tab_board, tab_sim = st.tabs([
+tab_sim, tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, tab_overview, tab_board = st.tabs([
+    "🧪 Prediction Lab",
     "🏠 Home",
     "⚽ Match Analyzer",
     "🏆 Tournament",
@@ -260,7 +261,6 @@ tab_home, tab_predictor, tab_tournament, tab_golden_boot, tab_status, tab_lab, t
     "🧪 Model Lab",
     "📋 All Fixtures",
     "📅 Daily Match Board",
-    "🧪 Prediction Lab",
 ])
 
 # ── Shared helpers imported once ──────────────────────────────────────────────
@@ -2228,6 +2228,10 @@ with tab_sim:
                 _sim_fixture.team_a, _sim_fixture.team_b, n=10_000, scenario=_sim_scenario,
             )
         st.session_state["sim_result"] = _sim_result
+        # Carry this fixture over to the Match Analyzer / Home so the score
+        # recommendation shown there matches what was just simulated here.
+        from src.data.fixture_provider import FixtureSource
+        st.session_state["selected_fixture"] = create_selected_fixture(_sim_fixture, FixtureSource.CSV)
 
     _sim_result = st.session_state.get("sim_result")
     if _sim_result is not None and _sim_result.team1 == _sim_fixture.team_a and _sim_result.team2 == _sim_fixture.team_b:
