@@ -303,6 +303,7 @@ def _build_match_prediction(fixture, snaps, params, board_rv):
     from src.models.match_simulator import (
         compute_match_xg, _full_scorelines, select_score_recommendations,
     )
+    from src.models.goal_environment import compute_goal_environment
     data  = compute_match_xg(fixture.team_a, fixture.team_b, snaps=snaps, params=params)
     xg_a, xg_b = data["xg_a"], data["xg_b"]
     mat   = data["matrix"]
@@ -310,9 +311,11 @@ def _build_match_prediction(fixture, snaps, params, board_rv):
     rs    = generate_recommendations(bm, "High", [], board_rv, top_n=1)
     over25 = next((m.probability for m in bm.over_under if "Over 2.5" in m.selection), 0.0)
     btts   = next((m.probability for m in bm.btts if m.selection == "BTTS Yes"), 0.0)
+    goal_env = compute_goal_environment(mat, xg_a, xg_b)
     _rec = select_score_recommendations(
         fixture.team_a, fixture.team_b, _full_scorelines(mat),
         data["win_a"], data["draw"], data["win_b"], xg_a=xg_a, xg_b=xg_b,
+        goal_env=goal_env,
     )
     score  = _rec.recommended_exact_score
     sig    = rs.recommendations[0].selection if rs.recommendations else "—"
@@ -1079,11 +1082,15 @@ with tab_predictor:
         model_label=_model_label,
     )
     from src.models.match_simulator import _full_scorelines as _fs, select_score_recommendations as _ssr
+    from src.models.goal_environment import compute_goal_environment as _cge
+    _an_matrix = build_dc_matrix(final_xg_a, final_xg_b, rho=DEFAULT_RHO)
+    _an_goal_env = _cge(_an_matrix, final_xg_a, final_xg_b)
     _an_rec = _ssr(
         team_a, team_b,
-        _fs(build_dc_matrix(final_xg_a, final_xg_b, rho=DEFAULT_RHO)),
+        _fs(_an_matrix),
         result.win_a, result.draw, result.win_b,
         xg_a=final_xg_a, xg_b=final_xg_b,
+        goal_env=_an_goal_env,
     )
     render_scoreline_table(
         result.top_scorelines, team_a, team_b,
@@ -1553,11 +1560,12 @@ with tab_lab:
         rho_tuning_results = None
         best_rho_result = None
         try:
-            bt_results_po = run_backtest(ratings=all_ratings, model_type="poisson")
+            _bt_ratings = load_team_ratings()
+            bt_results_po = run_backtest(ratings=_bt_ratings, model_type="poisson")
             bt_metrics_po = compute_metrics(bt_results_po)
-            bt_results_dc = run_backtest(ratings=all_ratings, model_type="dixon_coles")
+            bt_results_dc = run_backtest(ratings=_bt_ratings, model_type="dixon_coles")
             bt_metrics_dc = compute_metrics(bt_results_dc)
-            rho_tuning_results = tune_rho(all_ratings)
+            rho_tuning_results = tune_rho(_bt_ratings)
             best_rho_result = select_best_rho(rho_tuning_results)
         except Exception as e:
             st.error(f"Backtesting failed: {e}")
